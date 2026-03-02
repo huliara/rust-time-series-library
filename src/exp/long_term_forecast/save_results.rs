@@ -194,7 +194,8 @@ mod tests {
 
         // Create a persistent directory for output
         let exp_root_path = &get_result_root_path();
-        fs::create_dir_all(format!("{exp_root_path}/test")).unwrap();
+        let test_path = format!("{exp_root_path}/test_save_results");
+        fs::create_dir_all(format!("{test_path}/test")).unwrap();
 
         // Create dummy data
         // Batch=20, Time=96, Features=2
@@ -218,10 +219,10 @@ mod tests {
 
         let error = predicts.clone() - futures.clone();
 
-        save_results(exp_root_path, error, futures);
+        save_results(&test_path, error, futures);
 
         // Verify files are created
-        let test_dir = std::path::Path::new(exp_root_path).join("test");
+        let test_dir = std::path::Path::new(&test_path).join("test");
         assert!(test_dir.exists());
         assert!(test_dir.join("mse.csv").exists());
         assert!(test_dir.join("mae.csv").exists());
@@ -241,7 +242,7 @@ mod tests {
     #[test]
     fn test_plot_single_prediction() {
         let exp_root_path = &get_result_root_path();
-        let test_dir = std::path::Path::new(exp_root_path).join("test");
+        let test_dir = std::path::Path::new(exp_root_path).join("test_save_results/test");
         fs::create_dir_all(&test_dir).unwrap();
 
         let sample_idx = 9999;
@@ -255,7 +256,7 @@ mod tests {
         let true_series_values = vec![3.0_f32, 3.5, 3.0, 3.7];
 
         plot_single_prediction(
-            exp_root_path,
+            &format!("{exp_root_path}/test_save_results"),
             sample_idx,
             &context_series_values,
             &pred_series_values,
