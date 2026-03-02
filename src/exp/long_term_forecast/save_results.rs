@@ -3,6 +3,110 @@ use plotters::prelude::*;
 use std::fs;
 use std::io::Write;
 
+fn plot_single_prediction(
+    exp_root_path: &str,
+    sample_idx: usize,
+    contexts_vec: &[f32],
+    predicts_vec: &[f32],
+    futures_vec: &[f32],
+    context_len: usize,
+    time_steps: usize,
+    features: usize,
+) {
+    let file_name = format!("{exp_root_path}/test/prediction_{}.png", sample_idx);
+    let root = BitMapBackend::new(&file_name, (1024, 768)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    let feature_idx: usize = features - 1;
+
+    let mut context_series = Vec::new();
+    let mut pred_series = Vec::new();
+    let mut true_series = Vec::new();
+
+    let mut min_y = f32::MAX;
+    let mut max_y = f32::MIN;
+
+    for t in 0..context_len {
+        let offset = sample_idx * (context_len * features) + t * features + feature_idx;
+        let c_val = contexts_vec[offset];
+        context_series.push((t as f32, c_val));
+        if c_val < min_y {
+            min_y = c_val;
+        }
+        if c_val > max_y {
+            max_y = c_val;
+        }
+    }
+
+    for t in 0..time_steps {
+        let offset = sample_idx * (time_steps * features) + t * features + feature_idx;
+        let p_val = predicts_vec[offset];
+        let t_val = futures_vec[offset];
+
+        let x = (context_len + t) as f32;
+        pred_series.push((x, p_val));
+        true_series.push((x, t_val));
+
+        if p_val < min_y {
+            min_y = p_val;
+        }
+        if p_val > max_y {
+            max_y = p_val;
+        }
+        if t_val < min_y {
+            min_y = t_val;
+        }
+        if t_val > max_y {
+            max_y = t_val;
+        }
+    }
+
+    let y_margin = (max_y - min_y) * 0.1;
+    let y_range = (min_y - y_margin)..(max_y + y_margin);
+    let total_steps = (context_len + time_steps) as f32;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            format!("Sample {} Prediction vs Ground Truth", sample_idx),
+            ("sans-serif", 20).into_font(),
+        )
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0f32..total_steps, y_range)
+        .unwrap();
+
+    chart.configure_mesh().draw().unwrap();
+
+    chart
+        .draw_series(LineSeries::new(context_series, &GREEN))
+        .unwrap()
+        .label("Context")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
+
+    chart
+        .draw_series(LineSeries::new(pred_series, &BLUE))
+        .unwrap()
+        .label("Prediction")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
+
+    chart
+        .draw_series(LineSeries::new(true_series, &RED))
+        .unwrap()
+        .label("Ground Truth")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+
+    chart
+        .configure_series_labels()
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
+        .draw()
+        .unwrap();
+
+    root.present().unwrap();
+    println!("Saved plot to {}", file_name);
+}
+
 pub fn save_results<B: Backend>(
     exp_root_path: &str,
     error: Tensor<B, 3>,
@@ -100,100 +204,16 @@ pub fn save_results<B: Backend>(
     let samples_to_plot = std::cmp::min(10, batch_size);
 
     for i in 0..samples_to_plot {
-        let file_name = format!("{exp_root_path}/test/prediction_{}.png", i);
-        let root = BitMapBackend::new(&file_name, (1024, 768)).into_drawing_area();
-        root.fill(&WHITE).unwrap();
-
-        let feature_idx: usize = features - 1; // Plot the last feature
-
-        let mut context_series = Vec::new();
-        let mut pred_series = Vec::new();
-        let mut true_series = Vec::new();
-
-        let mut min_y = f32::MAX;
-        let mut max_y = f32::MIN;
-
-        for t in 0..context_len {
-            let offset = i * (context_len * features) + t * features + feature_idx;
-            let c_val = contexts_vec[offset];
-            context_series.push((t as f32, c_val));
-            if c_val < min_y {
-                min_y = c_val;
-            }
-            if c_val > max_y {
-                max_y = c_val;
-            }
-        }
-
-        for t in 0..time_steps {
-            // Flattened index: b * (T * F) + t * F + f
-            let offset = i * (time_steps * features) + t * features + feature_idx;
-            let p_val = predicts_vec[offset];
-            let t_val = futures_vec[offset];
-
-            let x = (context_len + t) as f32;
-            pred_series.push((x, p_val));
-            true_series.push((x, t_val));
-
-            if p_val < min_y {
-                min_y = p_val;
-            }
-            if p_val > max_y {
-                max_y = p_val;
-            }
-            if t_val < min_y {
-                min_y = t_val;
-            }
-            if t_val > max_y {
-                max_y = t_val;
-            }
-        }
-
-        // Add some margin to Y axis
-        let y_margin = (max_y - min_y) * 0.1;
-        let y_range = (min_y - y_margin)..(max_y + y_margin);
-        let total_steps = (context_len + time_steps) as f32;
-
-        let mut chart = ChartBuilder::on(&root)
-            .caption(
-                format!("Sample {} Prediction vs Ground Truth", i),
-                ("sans-serif", 20).into_font(),
-            )
-            .margin(10)
-            .x_label_area_size(30)
-            .y_label_area_size(30)
-            .build_cartesian_2d(0f32..total_steps, y_range)
-            .unwrap();
-
-        chart.configure_mesh().draw().unwrap();
-
-        chart
-            .draw_series(LineSeries::new(context_series, &GREEN))
-            .unwrap()
-            .label("Context")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
-
-        chart
-            .draw_series(LineSeries::new(pred_series, &BLUE))
-            .unwrap()
-            .label("Prediction")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
-
-        chart
-            .draw_series(LineSeries::new(true_series, &RED))
-            .unwrap()
-            .label("Ground Truth")
-            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
-
-        chart
-            .configure_series_labels()
-            .background_style(WHITE.mix(0.8))
-            .border_style(BLACK)
-            .draw()
-            .unwrap();
-
-        root.present().unwrap();
-        println!("Saved plot to {}", file_name);
+        plot_single_prediction(
+            exp_root_path,
+            i,
+            &contexts_vec,
+            &predicts_vec,
+            &futures_vec,
+            context_len,
+            time_steps,
+            features,
+        );
     }
 }
 
