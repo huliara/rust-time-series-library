@@ -73,7 +73,7 @@ pub fn plot_single_prediction(
     chart.configure_mesh().draw().unwrap();
 
     chart
-        .draw_series(LineSeries::new(context_series, &GREEN))
+        .draw_series(LineSeries::new(context_series, &RED))
         .unwrap()
         .label("Context")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));

@@ -1,5 +1,6 @@
 pub mod long_term_forecast;
 use burn::tensor::backend::AutodiffBackend;
+use std::time::Instant;
 
 use crate::{
     args::{
@@ -80,6 +81,7 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
             .expect("Failed to write args.yml");
 
         if !args.skip_training {
+            let train_start = Instant::now();
             self.train(
                 &result_path,
                 args.exp_config.clone(),
@@ -88,6 +90,8 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
                 args.time_lengths.clone(),
                 device.clone(),
             );
+            let elapsed = train_start.elapsed();
+            println!("Training finished in {:.3} seconds", elapsed.as_secs_f64());
         }
         self.infer(
             &result_path,
