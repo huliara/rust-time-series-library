@@ -1,23 +1,17 @@
 use burn::{prelude::Backend, Tensor};
 use plotters::prelude::*;
-use std::fs;
 use std::io::Write;
 
-fn plot_single_prediction(
+pub fn plot_single_prediction(
     exp_root_path: &str,
     sample_idx: usize,
-    contexts_vec: &[f32],
-    predicts_vec: &[f32],
-    futures_vec: &[f32],
-    context_len: usize,
-    time_steps: usize,
-    features: usize,
+    context_series_values: &[f32],
+    pred_series_values: &[f32],
+    true_series_values: &[f32],
 ) {
     let file_name = format!("{exp_root_path}/test/prediction_{}.png", sample_idx);
     let root = BitMapBackend::new(&file_name, (1024, 768)).into_drawing_area();
     root.fill(&WHITE).unwrap();
-
-    let feature_idx: usize = features - 1;
 
     let mut context_series = Vec::new();
     let mut pred_series = Vec::new();
@@ -25,10 +19,10 @@ fn plot_single_prediction(
 
     let mut min_y = f32::MAX;
     let mut max_y = f32::MIN;
+    let context_len = context_series_values.len();
+    let time_steps = pred_series_values.len();
 
-    for t in 0..context_len {
-        let offset = sample_idx * (context_len * features) + t * features + feature_idx;
-        let c_val = contexts_vec[offset];
+    for (t, &c_val) in context_series_values.iter().enumerate() {
         context_series.push((t as f32, c_val));
         if c_val < min_y {
             min_y = c_val;
@@ -38,11 +32,11 @@ fn plot_single_prediction(
         }
     }
 
-    for t in 0..time_steps {
-        let offset = sample_idx * (time_steps * features) + t * features + feature_idx;
-        let p_val = predicts_vec[offset];
-        let t_val = futures_vec[offset];
-
+    for (t, (&p_val, &t_val)) in pred_series_values
+        .iter()
+        .zip(true_series_values.iter())
+        .enumerate()
+    {
         let x = (context_len + t) as f32;
         pred_series.push((x, p_val));
         true_series.push((x, t_val));
@@ -107,13 +101,7 @@ fn plot_single_prediction(
     println!("Saved plot to {}", file_name);
 }
 
-pub fn save_results<B: Backend>(
-    exp_root_path: &str,
-    error: Tensor<B, 3>,
-    contexts: Tensor<B, 3>,
-    predicts: Tensor<B, 3>,
-    futures: Tensor<B, 3>,
-) {
+pub fn save_results<B: Backend>(exp_root_path: &str, error: Tensor<B, 3>, futures: Tensor<B, 3>) {
     // Calculate MSE and MAE per time step (average over Batch and Features)
     // error shape: [Batch, Time, Features]
     // mean_dim(0) -> [1, Time, Features]
@@ -134,7 +122,6 @@ pub fn save_results<B: Backend>(
         .to_vec::<f32>()
         .unwrap();
 
-    fs::create_dir_all(format!("{exp_root_path}/test/")).unwrap();
     let mut mse_writer = csv::Writer::from_path(format!("{exp_root_path}/test/mse.csv")).unwrap();
     let mut mae_writer = csv::Writer::from_path(format!("{exp_root_path}/test/mae.csv")).unwrap();
 
@@ -189,32 +176,6 @@ pub fn save_results<B: Backend>(
         .as_bytes(),
     )
     .unwrap();
-
-    // Plot 10 samples
-    let batch_size = predicts.dims()[0];
-    let time_steps = predicts.dims()[1];
-    let features = predicts.dims()[2];
-    let context_len = contexts.dims()[1];
-
-    // Convert to vectors for easier indexing
-    let contexts_vec = contexts.clone().into_data().to_vec::<f32>().unwrap();
-    let predicts_vec = predicts.clone().into_data().to_vec::<f32>().unwrap();
-    let futures_vec = futures.clone().into_data().to_vec::<f32>().unwrap();
-
-    let samples_to_plot = std::cmp::min(10, batch_size);
-
-    for i in 0..samples_to_plot {
-        plot_single_prediction(
-            exp_root_path,
-            i,
-            &contexts_vec,
-            &predicts_vec,
-            &futures_vec,
-            context_len,
-            time_steps,
-            features,
-        );
-    }
 }
 
 #[cfg(test)]
@@ -223,6 +184,7 @@ mod tests {
     use burn_ndarray::NdArray;
 
     use crate::env_path::get_result_root_path;
+    use std::fs;
 
     use super::*;
 
@@ -232,23 +194,17 @@ mod tests {
 
         // Create a persistent directory for output
         let exp_root_path = &get_result_root_path();
-        fs::create_dir_all(exp_root_path).unwrap();
+        fs::create_dir_all(format!("{exp_root_path}/test")).unwrap();
 
         // Create dummy data
         // Batch=20, Time=96, Features=2
         let batch_size = 20;
-        let context_len = 96;
         let time_steps = 96;
         let features = 2;
 
         let device = Default::default();
 
-        // Generate random data for contexts, predicts and futures
-        let contexts: Tensor<B, 3> = Tensor::random(
-            [batch_size, context_len, features],
-            Distribution::Uniform(0.0, 10.0),
-            &device,
-        );
+        // Generate random data for predicts and futures
         let predicts: Tensor<B, 3> = Tensor::random(
             [batch_size, time_steps, features],
             Distribution::Uniform(0.0, 10.0),
@@ -262,7 +218,7 @@ mod tests {
 
         let error = predicts.clone() - futures.clone();
 
-        save_results(exp_root_path, error, contexts, predicts, futures);
+        save_results(exp_root_path, error, futures);
 
         // Verify files are created
         let test_dir = std::path::Path::new(exp_root_path).join("test");
@@ -270,11 +226,6 @@ mod tests {
         assert!(test_dir.join("mse.csv").exists());
         assert!(test_dir.join("mae.csv").exists());
         assert!(test_dir.join("results.txt").exists());
-
-        // Check that 10 prediction plots are created (min(10, 20) = 10)
-        for i in 0..10 {
-            assert!(test_dir.join(format!("prediction_{}.png", i)).exists());
-        }
 
         // Optional: Verify content of results.txt
         let results_content = std::fs::read_to_string(test_dir.join("results.txt")).unwrap();
@@ -285,5 +236,34 @@ mod tests {
         assert!(results_content.contains("MSPE:"));
 
         println!("Test output saved to: {}", test_dir.display());
+    }
+
+    #[test]
+    fn test_plot_single_prediction() {
+        let exp_root_path = &get_result_root_path();
+        let test_dir = std::path::Path::new(exp_root_path).join("test");
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let sample_idx = 9999;
+        let plot_path = test_dir.join(format!("prediction_{}.png", sample_idx));
+        if plot_path.exists() {
+            fs::remove_file(&plot_path).unwrap();
+        }
+
+        let context_series_values = vec![1.0_f32, 1.5, 2.0, 2.5, 3.0];
+        let pred_series_values = vec![3.2_f32, 3.4, 3.1, 3.6];
+        let true_series_values = vec![3.0_f32, 3.5, 3.0, 3.7];
+
+        plot_single_prediction(
+            exp_root_path,
+            sample_idx,
+            &context_series_values,
+            &pred_series_values,
+            &true_series_values,
+        );
+
+        assert!(plot_path.exists());
+        let metadata = fs::metadata(&plot_path).unwrap();
+        assert!(metadata.len() > 0);
     }
 }

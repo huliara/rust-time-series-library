@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 pub struct ExpConfig {
     #[arg(long, default_value_t = 10)]
     pub num_epochs: usize,
-    #[arg(long, default_value_t = 64)]
+    #[arg(long, default_value_t = 32)]
     pub batch_size: usize,
     #[arg(long, default_value_t = 4)]
     pub num_workers: usize,
