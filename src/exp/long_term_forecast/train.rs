@@ -8,7 +8,13 @@ use burn::{
     prelude::*,
     record::CompactRecorder,
     tensor::backend::AutodiffBackend,
-    train::{metric::LossMetric, Learner, SupervisedTraining},
+    train::{
+        metric::{
+            store::{Aggregate, Direction, Split},
+            LossMetric,
+        },
+        Learner, MetricEarlyStoppingStrategy, StoppingCondition, SupervisedTraining,
+    },
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
@@ -60,8 +66,19 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             ExpFlag::Val,
         );
 
+        let loss = LossMetric::new();
+
+        let stopping_strategy = MetricEarlyStoppingStrategy::new(
+            &loss,
+            Aggregate::Mean,
+            Direction::Lowest,
+            Split::Train,
+            StoppingCondition::NoImprovementSince { n_epochs: 5 },
+        );
+
         let training = SupervisedTraining::new(result_path, dataloader_train, dataloader_valid)
-            .metrics((LossMetric::new(),))
+            .metrics((loss,))
+            .early_stopping(stopping_strategy)
             .with_file_checkpointer(CompactRecorder::new())
             .num_epochs(exp_config.num_epochs)
             .summary();

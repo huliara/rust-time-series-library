@@ -1,1 +1,1 @@
-cargo run -- --num-epochs 1 --task-name long-term-forecast --backend wgpu --data et-th1 --feature-type single --target ot --embed time-f patch-tst --activation gelu
+cargo run -- --num-epochs 50 --task-name long-term-forecast --backend wgpu --data et-th1 --feature-type single --target ot --embed time-f patch-tst --activation gelu
