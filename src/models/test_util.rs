@@ -4,7 +4,7 @@ use crate::models::traits::Forecast;
 use crate::test_utils::test_py::{execute_python_forward_multidim, execute_python_forward_onedim};
 
 use burn::{
-    tensor::{backend::Backend, TensorData},
+    tensor::{backend::Backend, TensorData, Tolerance},
     Tensor,
 };
 use std::any::type_name;
@@ -33,7 +33,7 @@ pub fn assert_module_forecast<B: Backend, M: Forecast<B>>(dim: Dim, module: M) {
     let rust_tensor = Tensor::cat(rust_vec, 0).to_data();
     let type_name_vec: Vec<&str> = type_name::<M>().split('<').collect();
     let type_name = type_name_vec[0].split("::").last().unwrap();
-    let py_forward_results: Vec<f32> = match dim {
+    let py_forward_results: Vec<f64> = match dim {
         Dim::Multidim => execute_python_forward_multidim(type_name).unwrap(),
         Dim::Onedim => execute_python_forward_onedim(type_name).unwrap(),
     };
@@ -42,5 +42,5 @@ pub fn assert_module_forecast<B: Backend, M: Forecast<B>>(dim: Dim, module: M) {
 
     assert_eq!(py_tensor.shape, rust_tensor.shape);
 
-    py_tensor.assert_approx_eq::<f32>(&rust_tensor, burn::tensor::Tolerance::default());
+    py_tensor.assert_approx_eq::<f64>(&rust_tensor, Tolerance::default());
 }

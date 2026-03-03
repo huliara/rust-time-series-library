@@ -151,7 +151,7 @@ impl<B: Backend> ETTHourDataset<B> {
 
                 let slice_len = end_idx - start_idx;
 
-                let data_stamp_array: Array2<f32> = match args.embed {
+                let data_stamp_array: Array2<f64> = match args.embed {
                     TimeEmbed::Fixed => {
                         use chrono::{Datelike, Timelike};
                         let dates: Vec<chrono::NaiveDateTime> = df
@@ -167,13 +167,13 @@ impl<B: Backend> ETTHourDataset<B> {
                             })
                             .collect();
 
-                        let month: Vec<f32> = dates.iter().map(|d| d.month() as f32).collect();
-                        let day: Vec<f32> = dates.iter().map(|d| d.day() as f32).collect();
-                        let weekday: Vec<f32> = dates
+                        let month: Vec<f64> = dates.iter().map(|d| d.month() as f64).collect();
+                        let day: Vec<f64> = dates.iter().map(|d| d.day() as f64).collect();
+                        let weekday: Vec<f64> = dates
                             .iter()
-                            .map(|d| d.weekday().number_from_monday() as f32 - 1.0)
+                            .map(|d| d.weekday().number_from_monday() as f64 - 1.0)
                             .collect();
-                        let hour: Vec<f32> = dates.iter().map(|d| d.hour() as f32).collect();
+                        let hour: Vec<f64> = dates.iter().map(|d| d.hour() as f64).collect();
 
                         let month_series = Column::new("month".into(), month);
                         let day_series = Column::new("day".into(), day);
@@ -182,7 +182,7 @@ impl<B: Backend> ETTHourDataset<B> {
 
                         DataFrame::new(vec![month_series, day_series, weekday_series, hour_series])
                             .unwrap()
-                            .to_ndarray::<Float32Type>(IndexOrder::C)
+                            .to_ndarray::<Float64Type>(IndexOrder::C)
                             .unwrap()
                             .into_dimensionality::<ndarray::Ix2>()
                             .unwrap()

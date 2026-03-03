@@ -1,38 +1,38 @@
 use chrono::{Datelike, NaiveDateTime, Timelike};
 use ndarray::Array2;
 
-type FeatureFn = fn(&NaiveDateTime) -> f32;
+type FeatureFn = fn(&NaiveDateTime) -> f64;
 
-fn second_of_minute(t: &NaiveDateTime) -> f32 {
-    t.second() as f32 / 59.0 - 0.5
+fn second_of_minute(t: &NaiveDateTime) -> f64 {
+    t.second() as f64 / 59.0 - 0.5
 }
 
-fn minute_of_hour(t: &NaiveDateTime) -> f32 {
-    t.minute() as f32 / 59.0 - 0.5
+fn minute_of_hour(t: &NaiveDateTime) -> f64 {
+    t.minute() as f64 / 59.0 - 0.5
 }
 
-fn hour_of_day(t: &NaiveDateTime) -> f32 {
-    t.hour() as f32 / 23.0 - 0.5
+fn hour_of_day(t: &NaiveDateTime) -> f64 {
+    t.hour() as f64 / 23.0 - 0.5
 }
 
-fn day_of_week(t: &NaiveDateTime) -> f32 {
-    t.weekday().num_days_from_monday() as f32 / 6.0 - 0.5
+fn day_of_week(t: &NaiveDateTime) -> f64 {
+    t.weekday().num_days_from_monday() as f64 / 6.0 - 0.5
 }
 
-fn day_of_month(t: &NaiveDateTime) -> f32 {
-    (t.day() as f32 - 1.0) / 30.0 - 0.5
+fn day_of_month(t: &NaiveDateTime) -> f64 {
+    (t.day() as f64 - 1.0) / 30.0 - 0.5
 }
 
-fn day_of_year(t: &NaiveDateTime) -> f32 {
-    (t.ordinal() as f32 - 1.0) / 365.0 - 0.5
+fn day_of_year(t: &NaiveDateTime) -> f64 {
+    (t.ordinal() as f64 - 1.0) / 365.0 - 0.5
 }
 
-fn month_of_year(t: &NaiveDateTime) -> f32 {
-    (t.month() as f32 - 1.0) / 11.0 - 0.5
+fn month_of_year(t: &NaiveDateTime) -> f64 {
+    (t.month() as f64 - 1.0) / 11.0 - 0.5
 }
 
-fn week_of_year(t: &NaiveDateTime) -> f32 {
-    (t.iso_week().week() as f32 - 1.0) / 52.0 - 0.5
+fn week_of_year(t: &NaiveDateTime) -> f64 {
+    (t.iso_week().week() as f64 - 1.0) / 52.0 - 0.5
 }
 
 fn time_features_from_frequency_str(freq_str: &str) -> Vec<FeatureFn> {
@@ -105,12 +105,12 @@ fn time_features_from_frequency_str(freq_str: &str) -> Vec<FeatureFn> {
     }
 }
 
-pub fn time_features(dates: &[NaiveDateTime], freq: &str) -> Array2<f32> {
+pub fn time_features(dates: &[NaiveDateTime], freq: &str) -> Array2<f64> {
     let features = time_features_from_frequency_str(freq);
     let num_features = features.len();
     let num_samples = dates.len();
 
-    let mut data = Vec::with_capacity(num_samples * num_features);
+    let mut data: Vec<f64> = Vec::with_capacity(num_samples * num_features);
 
     for date in dates {
         for f in &features {

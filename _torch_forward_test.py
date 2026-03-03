@@ -289,11 +289,11 @@ def _torch_forward_test(name, args):
     elif name == "PatchTST":
         for name, param in module.named_parameters():
             if "weight" in name:
-                nn.init.constant_(param, 0.01)
+                nn.init.constant_(param, 0.1)
             elif "bias" in name and "norm" in name:
                 nn.init.constant_(param, 0.00)
             elif "bias" in name:
-                nn.init.constant_(param, 0.01)
+                nn.init.constant_(param, 0.1)
     else:
         for name, param in module.named_parameters():
             if "weight" in name:

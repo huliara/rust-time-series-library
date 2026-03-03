@@ -255,7 +255,7 @@ mod tests {
             label_len: 48,
         };
 
-        let initializer = Initializer::Constant { value: (0.01) };
+        let initializer = Initializer::Constant { value: (0.1) };
 
         let model = PatchTSTConfig::new(patch_tst_args)
             .with_initializer(initializer)

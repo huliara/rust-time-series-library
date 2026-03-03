@@ -22,7 +22,7 @@ pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bo
     module.getattr(attr_name).unwrap()
 }
 
-pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f32>> {
+pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
@@ -36,13 +36,13 @@ pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f32>> {
         //    We expect the result to be a numpy array.
         //    Flattening ensures we get a 1D sequence.
         let flat_result = result.call_method0("flatten")?.call_method0("tolist")?;
-        let output: Vec<f32> = flat_result.extract()?;
+        let output: Vec<f64> = flat_result.extract()?;
 
         Ok(output)
     })
 }
 
-pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f32>> {
+pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
@@ -54,7 +54,7 @@ pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f32>> {
 
         // 6. Convert numpy result to Vec<f32>
         let flat_result = result.call_method0("flatten")?.call_method0("tolist")?;
-        let output: Vec<f32> = flat_result.extract()?;
+        let output: Vec<f64> = flat_result.extract()?;
         Ok(output)
     })
 }
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_execute_python_forward() {
         let model_name = "PatchTST";
-        let result: Result<Vec<f32>, PyErr> = execute_python_forward_multidim(model_name);
+        let result: Result<Vec<f64>, PyErr> = execute_python_forward_multidim(model_name);
         if let Err(e) = &result {
             panic!("Python execution failed: {:?}", e);
         }
