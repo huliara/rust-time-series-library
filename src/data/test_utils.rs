@@ -6,8 +6,9 @@ use crate::{
 };
 use burn::{data::dataloader::DataLoader, tensor::backend::Backend};
 
-pub fn setup_test_dataloader<B: Backend>() -> Arc<dyn DataLoader<B, TimeSeriesBatch<B>>> {
-    let data_config = DataConfig::default();
+pub fn setup_test_dataloader<B: Backend>(
+    data_config: DataConfig,
+) -> Arc<dyn DataLoader<B, TimeSeriesBatch<B>>> {
     let lengths = TimeLengths::default();
     let batch_size = 32;
     let seed = 42;

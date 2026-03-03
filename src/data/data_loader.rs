@@ -38,7 +38,7 @@ pub fn create_data_loader<B: Backend>(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_py::execute_dataloader_test;
+    use crate::test_utils::test_py::execute_dataloader_test;
     use burn::backend::wgpu::Wgpu;
 
     use super::*;

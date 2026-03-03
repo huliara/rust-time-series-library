@@ -9,7 +9,7 @@ def dataset_test():
         args=args,
         root_path="./data/ETT/",
         flag="test",
-        features="S",
+        features="M",
         size=[args.seq_len, args.label_len, args.pred_len],
         data_path="ETTh1.csv",
         scale=True,
@@ -18,7 +18,8 @@ def dataset_test():
     )
     x: np.ndarray = dataset.data_x
     stamp: np.ndarray = dataset.data_stamp
-    return x, stamp
+    y: np.ndarray = dataset.data_y
+    return x, stamp, y
 
 
 if __name__ == "__main__":

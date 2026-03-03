@@ -6,6 +6,7 @@ import torch
 
 def dataloader_test():
     args = Args_mock()
+    args.label_len = 0
     exp = Exp_Long_Term_Forecast(args)
     device = exp.device
     _, dataloader = data_provider(args, flag="test")

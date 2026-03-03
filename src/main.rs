@@ -5,7 +5,7 @@ mod env_path;
 mod exp;
 mod layers;
 mod models;
-mod test_py;
+mod test_utils;
 
 use args::exp::TaskName;
 use args::{backend::Backend as ArgBackend, RootArgs};

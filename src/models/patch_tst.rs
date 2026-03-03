@@ -223,11 +223,11 @@ impl<B: Backend> Forecast<B> for PatchTST<B> {
 
 #[cfg(test)]
 mod tests {
-    use super::{super::test_util::assert_module_forecast, PatchTST, PatchTSTConfig};
+    use super::super::test_util::{assert_module_forecast, Dim};
     use crate::args::activation::ActivationArg;
     use crate::args::exp::TaskName;
     use crate::args::time_lengths::TimeLengths;
-    use crate::models::patch_tst::PatchTSTArgs;
+    use crate::models::patch_tst::{PatchTST, PatchTSTArgs, PatchTSTConfig};
     use burn::backend::Wgpu;
     use burn::nn::Initializer;
 
@@ -261,6 +261,7 @@ mod tests {
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
 
-        assert_module_forecast::<B, PatchTST<B>>(model);
+        assert_module_forecast::<B, PatchTST<B>>(Dim::Onedim, model.clone());
+        assert_module_forecast::<B, PatchTST<B>>(Dim::Multidim, model);
     }
 }

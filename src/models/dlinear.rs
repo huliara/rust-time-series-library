@@ -289,10 +289,9 @@ impl<B: Backend> Classification<B> for DLinear<B> {
 #[cfg(test)]
 mod tests {
     use super::{DLinear, DLinearConfig};
-    use crate::args::exp::TaskName;
-    use crate::args::time_lengths::TimeLengths;
+    use crate::args::{exp::TaskName, time_lengths::TimeLengths};
     use crate::models::dlinear::DLinearArgs;
-    use crate::models::test_util::assert_module_forecast;
+    use crate::models::test_util::{assert_module_forecast, Dim};
     use burn::backend::wgpu::Wgpu;
     use burn::nn::Initializer;
     #[test]
@@ -316,6 +315,7 @@ mod tests {
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
 
-        assert_module_forecast::<B, DLinear<B>>(model);
+        assert_module_forecast::<B, DLinear<B>>(Dim::Onedim, model.clone());
+        assert_module_forecast::<B, DLinear<B>>(Dim::Multidim, model);
     }
 }

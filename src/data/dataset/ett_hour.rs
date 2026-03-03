@@ -1,9 +1,6 @@
 use super::util::*;
 use crate::{
-    args::{
-        data_config::DataConfig, feature_type::FeatureType, time_embed::TimeEmbed,
-        time_lengths::TimeLengths,
-    },
+    args::{data_config::DataConfig, time_embed::TimeEmbed, time_lengths::TimeLengths},
     env_path::get_dataset_path,
 };
 use burn::{
@@ -104,41 +101,53 @@ impl<B: Backend> ETTHourDataset<B> {
                     ExpFlag::Test => (border1s.2, border2s.2),
                 };
 
-                let data_array: Array2<f64> = match args.feature_type {
-                    FeatureType::Multi => df
-                        .clone()
-                        .lazy()
-                        .select([
-                            col("HUFL"),
-                            col("HULL"),
-                            col("MUFL"),
-                            col("MULL"),
-                            col("LUFL"),
-                            col("LULL"),
-                            col("OT"),
-                        ])
-                        .collect()
-                        .unwrap()
-                        .to_ndarray::<Float64Type>(IndexOrder::C)
-                        .unwrap()
-                        .into_dimensionality::<ndarray::Ix2>()
-                        .unwrap(),
-                    FeatureType::Single => df
-                        .clone()
-                        .lazy()
-                        .select([col(args.target.to_string())])
-                        .collect()
-                        .unwrap()
-                        .to_ndarray::<Float64Type>(IndexOrder::C)
-                        .unwrap()
-                        .into_dimensionality::<ndarray::Ix2>()
-                        .unwrap(),
-                };
-
+                let train_features = args
+                    .train_features
+                    .clone()
+                    .iter()
+                    .map(|f| col(f.to_string()))
+                    .collect::<Vec<_>>();
+                let target_features = args
+                    .targets
+                    .clone()
+                    .iter()
+                    .map(|t| col(t.to_string()))
+                    .collect::<Vec<_>>();
+                let data_x_array: Array2<f64> = df
+                    .clone()
+                    .lazy()
+                    .select(train_features)
+                    .collect()
+                    .unwrap()
+                    .to_ndarray::<Float64Type>(IndexOrder::C)
+                    .unwrap()
+                    .into_dimensionality::<ndarray::Ix2>()
+                    .unwrap();
+                let data_y_array = df
+                    .clone()
+                    .lazy()
+                    .select(target_features)
+                    .collect()
+                    .unwrap()
+                    .to_ndarray::<Float64Type>(IndexOrder::C)
+                    .unwrap()
+                    .into_dimensionality::<ndarray::Ix2>()
+                    .unwrap();
                 let mut scaler = StandardScaler::new();
-                let train_data = data_array.slice(s![border1s.0..border2s.0, ..]).to_owned();
-                scaler.fit(&train_data);
-                let data = scaler.transform(&data_array);
+                let train_data_sliced = data_x_array
+                    .slice(s![border1s.0..border2s.0, ..])
+                    .to_owned();
+                scaler.fit(&train_data_sliced);
+
+                let data_x_array = scaler.transform(&data_x_array);
+
+                let mut target_scaler = StandardScaler::new();
+                let target_data_sliced = data_y_array
+                    .slice(s![border1s.0..border2s.0, ..])
+                    .to_owned();
+                target_scaler.fit(&target_data_sliced);
+
+                let data_y_array = target_scaler.transform(&data_y_array);
 
                 let slice_len = end_idx - start_idx;
 
@@ -195,8 +204,8 @@ impl<B: Backend> ETTHourDataset<B> {
                     }
                 };
 
-                let data_x_array = data.slice(s![start_idx..end_idx, ..]).to_owned();
-                let data_y_array = data.slice(s![start_idx..end_idx, ..]).to_owned();
+                let data_x_array = data_x_array.slice(s![start_idx..end_idx, ..]).to_owned();
+                let data_y_array = data_y_array.slice(s![start_idx..end_idx, ..]).to_owned();
 
                 let shape_x = data_x_array.shape().to_vec();
                 let data_x = Tensor::from_data(
@@ -272,14 +281,17 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for ETTHourDataset<B> {
 #[cfg(test)]
 mod tests {
     use super::ETTHourDataset;
-    use crate::args::data_config::DataConfig;
     use crate::args::time_lengths::TimeLengths;
-    use crate::test_py::execute_data_provider_test;
-    use burn::{tensor::TensorData, tensor::Tolerance};
+    use crate::test_utils::test_py::execute_dataset_test;
+    use crate::{
+        args::data_config::DataConfig,
+        test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val,
+    };
+    use burn::tensor::TensorData;
     #[test]
     fn test_ett_hour_dataset() {
         type B = burn::backend::wgpu::Wgpu;
-        let py_dataset_result = execute_data_provider_test().unwrap();
+        let py_dataset_result = execute_dataset_test().unwrap();
         let device = Default::default();
         let data_config = DataConfig::default();
         let lengths = TimeLengths::default();
@@ -287,13 +299,15 @@ mod tests {
             ETTHourDataset::<B>::new(&data_config, &lengths, super::ExpFlag::Test, &device);
 
         let py_tensor_stamp = TensorData::new(py_dataset_result.1, rust_dataset.data_stamp.shape());
-
         let rust_tensor_stamp = rust_dataset.data_stamp.to_data();
-        assert_eq!(py_tensor_stamp.shape, rust_tensor_stamp.shape);
-        py_tensor_stamp.assert_approx_eq::<f32>(&rust_tensor_stamp, Tolerance::default());
+        assert_tensor_shape_and_val(py_tensor_stamp, rust_tensor_stamp);
+
         let py_tensor_x = TensorData::new(py_dataset_result.0, rust_dataset.data_x.shape());
         let rust_tensor_x = rust_dataset.data_x.to_data();
-        py_tensor_x.assert_approx_eq::<f32>(&rust_tensor_x, Tolerance::default());
-        assert_eq!(py_tensor_x.shape, rust_tensor_x.shape);
+        assert_tensor_shape_and_val(py_tensor_x, rust_tensor_x);
+
+        let py_tensor_y = TensorData::new(py_dataset_result.2, rust_dataset.data_y.shape());
+        let rust_tensor_y = rust_dataset.data_y.to_data();
+        assert_tensor_shape_and_val(py_tensor_y, rust_tensor_y);
     }
 }

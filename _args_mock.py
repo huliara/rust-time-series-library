@@ -9,7 +9,7 @@ class Args_mock:
         self.data = "ETTh1"
         self.root_path = "./data/ETT/"
         self.data_path = "ETTh1.csv"
-        self.features = "S"
+        self.features = "M"
         self.target = "OT"
         self.freq = "h"
         self.checkpoints = "./checkpoints/"

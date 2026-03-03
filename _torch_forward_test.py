@@ -264,8 +264,18 @@ model_dict = {
 }
 
 
-def torch_forward_test(name):
+def torch_forward_test_multidim(name):
     args = Args_mock()
+    return _torch_forward_test(name, args)
+
+
+def torch_forward_test_onedim(name):
+    args = Args_mock()
+    args.features = "S"
+    return _torch_forward_test(name, args)
+
+
+def _torch_forward_test(name, args):
     exp = Exp_Long_Term_Forecast(args)
     device = exp.device
     module: nn.Module = model_dict[name].Model(args).float()
@@ -321,5 +331,6 @@ def torch_forward_test(name):
 
 
 if __name__ == "__main__":
-    output = torch_forward_test("PatchTST")
+    args = Args_mock()
+    output = _torch_forward_test("PatchTST", args)
     print("output shape:", output.shape)
