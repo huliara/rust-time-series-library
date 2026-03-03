@@ -1,4 +1,4 @@
-use crate::args::{data_config::DataConfig, target::ColumnName};
+use crate::args::{column_name::ColumnName, data_config::DataConfig};
 use crate::data::test_utils::setup_test_dataloader;
 use crate::models::traits::Forecast;
 use crate::test_utils::test_py::{execute_python_forward_multidim, execute_python_forward_onedim};

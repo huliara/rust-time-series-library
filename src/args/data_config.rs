@@ -1,4 +1,4 @@
-use crate::args::{target::ColumnName, time_embed::TimeEmbed};
+use crate::args::{column_name::ColumnName, time_embed::TimeEmbed};
 use clap::{Args, ValueEnum};
 use core::fmt;
 use serde::{Deserialize, Serialize};
