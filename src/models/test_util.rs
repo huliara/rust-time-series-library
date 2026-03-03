@@ -1,4 +1,4 @@
-use crate::args::{data_config::DataConfig, target::EttFeature};
+use crate::args::{data_config::DataConfig, target::ColumnName};
 use crate::data::test_utils::setup_test_dataloader;
 use crate::models::traits::Forecast;
 use crate::test_utils::test_py::{execute_python_forward_multidim, execute_python_forward_onedim};
@@ -19,8 +19,8 @@ pub fn assert_module_forecast<B: Backend, M: Forecast<B>>(dim: Dim, module: M) {
     let data_config = match dim {
         Dim::Multidim => DataConfig::default(),
         Dim::Onedim => DataConfig {
-            train_features: vec![EttFeature::OT],
-            targets: vec![EttFeature::OT],
+            train_features: vec![ColumnName::OT],
+            targets: vec![ColumnName::OT],
             ..DataConfig::default()
         },
     };

@@ -1,4 +1,4 @@
-use crate::args::{target::EttFeature, time_embed::TimeEmbed};
+use crate::args::{target::ColumnName, time_embed::TimeEmbed};
 use clap::{Args, ValueEnum};
 use core::fmt;
 use serde::{Deserialize, Serialize};
@@ -8,10 +8,10 @@ pub struct DataConfig {
     pub data: Data,
     //corresponds to features
     #[arg(long)]
-    pub train_features: Vec<EttFeature>,
+    pub train_features: Vec<ColumnName>,
 
     #[arg(long)]
-    pub targets: Vec<EttFeature>,
+    pub targets: Vec<ColumnName>,
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
@@ -21,22 +21,22 @@ impl Default for DataConfig {
         Self {
             data: Data::ETTh1,
             train_features: vec![
-                EttFeature::HUFL,
-                EttFeature::HULL,
-                EttFeature::MUFL,
-                EttFeature::MULL,
-                EttFeature::LUFL,
-                EttFeature::LULL,
-                EttFeature::OT,
+                ColumnName::HUFL,
+                ColumnName::HULL,
+                ColumnName::MUFL,
+                ColumnName::MULL,
+                ColumnName::LUFL,
+                ColumnName::LULL,
+                ColumnName::OT,
             ],
             targets: vec![
-                EttFeature::HUFL,
-                EttFeature::HULL,
-                EttFeature::MUFL,
-                EttFeature::MULL,
-                EttFeature::LUFL,
-                EttFeature::LULL,
-                EttFeature::OT,
+                ColumnName::HUFL,
+                ColumnName::HULL,
+                ColumnName::MUFL,
+                ColumnName::MULL,
+                ColumnName::LUFL,
+                ColumnName::LULL,
+                ColumnName::OT,
             ],
             embed: TimeEmbed::TimeF,
         }
