@@ -8,6 +8,8 @@ pub struct DataConfig {
     pub data: Data,
     //corresponds to features
     #[arg(long)]
+    pub path: String,
+    #[arg(long)]
     pub train_features: Vec<ColumnName>,
 
     #[arg(long)]
@@ -20,6 +22,7 @@ impl Default for DataConfig {
     fn default() -> Self {
         Self {
             data: Data::ETTh1,
+            path: "ETT/ETTh1.csv".to_string(),
             train_features: vec![
                 ColumnName::HUFL,
                 ColumnName::HULL,
@@ -65,4 +68,5 @@ impl fmt::Display for DataConfig {
 #[derive(Debug, Clone, ValueEnum, Deserialize, Serialize, strum::Display)]
 pub enum Data {
     ETTh1,
+    Exchange,
 }

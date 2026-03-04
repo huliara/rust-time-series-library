@@ -1,4 +1,4 @@
-use crate::data::dataset::ett_hour::TimeSeriesItem;
+use crate::data::dataset::time_series_dataset::TimeSeriesItem;
 use burn::{data::dataloader::batcher::Batcher, prelude::Backend, tensor::Tensor};
 
 #[derive(Clone, Debug, Default)]

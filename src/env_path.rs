@@ -9,7 +9,6 @@ use std::path::Path;
 pub struct EnvPath {
     pub result_root_path: String,
     pub data_root_path: String,
-    pub dataset_path: HashMap<String, String>,
 }
 
 fn get_env_paths() -> EnvPath {
@@ -22,17 +21,11 @@ pub fn get_result_root_path() -> String {
     get_env_paths().result_root_path
 }
 
-pub fn get_dataset_path(data: Data) -> String {
+pub fn get_dataset_path(path: String) -> String {
     let paths = get_env_paths();
-    let key = data.to_string();
-    let relative_path = paths
-        .dataset_path
-        .get(&key)
-        .cloned()
-        .unwrap_or_else(|| panic!("Dataset path for {} not found in env.yml", key));
 
     Path::new(&paths.data_root_path)
-        .join(relative_path)
+        .join(path)
         .to_str()
         .unwrap()
         .to_string()

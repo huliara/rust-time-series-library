@@ -1,6 +1,6 @@
 use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
-    data::{data_loader::create_data_loader, dataset::ett_hour::ExpFlag},
+    data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{create_artifact_dir, long_term_forecast::ForecastModel, Train},
 };
 use burn::{

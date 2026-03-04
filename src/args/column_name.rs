@@ -10,4 +10,11 @@ pub enum ColumnName {
     LUFL,
     LULL,
     OT,
+    open,
+    high,
+    low,
+    close,
+    tick_volume,
+    spread,
+    real_volume,
 }

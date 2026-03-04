@@ -2,7 +2,7 @@ use std::fs;
 
 use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
-    data::{data_loader::create_data_loader, dataset::ett_hour::ExpFlag},
+    data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{
             save_results::{plot_single_prediction, save_results},

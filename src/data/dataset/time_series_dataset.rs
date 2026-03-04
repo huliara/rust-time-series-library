@@ -1,6 +1,10 @@
 use super::util::*;
 use crate::{
-    args::{data_config::DataConfig, time_embed::TimeEmbed, time_lengths::TimeLengths},
+    args::{
+        data_config::{Data, DataConfig},
+        time_embed::TimeEmbed,
+        time_lengths::TimeLengths,
+    },
     env_path::get_dataset_path,
 };
 use burn::{
@@ -50,7 +54,7 @@ impl StandardScaler {
     }
 }
 
-pub struct ETTHourDataset<B: Backend> {
+pub struct TimeSeriesDataset<B: Backend> {
     pub data_x: Tensor<B, 2>,
     pub data_y: Tensor<B, 2>,
     pub data_stamp: Tensor<B, 2>,
@@ -66,7 +70,7 @@ pub enum ExpFlag {
     Test,
 }
 
-impl<B: Backend> ETTHourDataset<B> {
+impl<B: Backend> TimeSeriesDataset<B> {
     pub fn new(
         args: &DataConfig,
         lengths: &TimeLengths,
@@ -74,8 +78,7 @@ impl<B: Backend> ETTHourDataset<B> {
         device: &B::Device,
     ) -> Self {
         // Default size
-        let data_path = get_dataset_path(args.data.clone());
-        let path = PathBuf::from(&data_path);
+        let path = PathBuf::from(get_dataset_path(args.path.clone()));
         let df = CsvReadOptions::default()
             .with_has_header(true)
             .try_into_reader_with_file_path(Some(path))
@@ -84,23 +87,6 @@ impl<B: Backend> ETTHourDataset<B> {
 
         match df {
             Ok(df) => {
-                let border1s = (
-                    0,
-                    12 * 30 * 24 - lengths.seq_len,
-                    12 * 30 * 24 + 4 * 30 * 24 - lengths.seq_len,
-                );
-                let border2s: (usize, usize, usize) = (
-                    12 * 30 * 24,
-                    12 * 30 * 24 + 4 * 30 * 24,
-                    12 * 30 * 24 + 8 * 30 * 24,
-                );
-
-                let (start_idx, end_idx) = match flag {
-                    ExpFlag::Train => (border1s.0, border2s.0),
-                    ExpFlag::Val => (border1s.1, border2s.1),
-                    ExpFlag::Test => (border1s.2, border2s.2),
-                };
-
                 let train_features = args
                     .train_features
                     .clone()
@@ -113,6 +99,7 @@ impl<B: Backend> ETTHourDataset<B> {
                     .iter()
                     .map(|t| col(t.to_string()))
                     .collect::<Vec<_>>();
+
                 let data_x_array: Array2<f64> = df
                     .clone()
                     .lazy()
@@ -133,6 +120,38 @@ impl<B: Backend> ETTHourDataset<B> {
                     .unwrap()
                     .into_dimensionality::<ndarray::Ix2>()
                     .unwrap();
+
+                let num_train = (data_x_array.len() as f64 * 0.7) as usize;
+                let num_test = (data_x_array.len() as f64 * 0.2) as usize;
+                let num_val = data_x_array.len() - num_train - num_test;
+
+                let border1s = match args.data {
+                    Data::ETTh1 => (
+                        0,
+                        12 * 30 * 24 - lengths.seq_len,
+                        12 * 30 * 24 + 4 * 30 * 24 - lengths.seq_len,
+                    ),
+                    Data::Exchange => (
+                        0,
+                        num_train - lengths.seq_len,
+                        data_x_array.len() - num_test - lengths.seq_len,
+                    ),
+                };
+                let border2s: (usize, usize, usize) = match args.data {
+                    Data::ETTh1 => (
+                        12 * 30 * 24,
+                        12 * 30 * 24 + 4 * 30 * 24,
+                        12 * 30 * 24 + 8 * 30 * 24,
+                    ),
+                    Data::Exchange => (num_train, num_train + num_val, data_x_array.len()),
+                };
+
+                let (start_idx, end_idx) = match flag {
+                    ExpFlag::Train => (border1s.0, border2s.0),
+                    ExpFlag::Val => (border1s.1, border2s.1),
+                    ExpFlag::Test => (border1s.2, border2s.2),
+                };
+
                 let mut scaler = StandardScaler::new();
                 let train_data_sliced = data_x_array
                     .slice(s![border1s.0..border2s.0, ..])
@@ -241,7 +260,7 @@ impl<B: Backend> ETTHourDataset<B> {
     }
 }
 
-impl<B: Backend> Dataset<TimeSeriesItem<B>> for ETTHourDataset<B> {
+impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
     fn get(&self, index: usize) -> Option<TimeSeriesItem<B>> {
         if index >= self.len() {
             return None;
@@ -280,7 +299,7 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for ETTHourDataset<B> {
 }
 #[cfg(test)]
 mod tests {
-    use super::ETTHourDataset;
+    use super::TimeSeriesDataset;
     use crate::args::time_lengths::TimeLengths;
     use crate::test_utils::test_py::execute_dataset_test;
     use crate::{
@@ -296,7 +315,7 @@ mod tests {
         let data_config = DataConfig::default();
         let lengths = TimeLengths::default();
         let rust_dataset =
-            ETTHourDataset::<B>::new(&data_config, &lengths, super::ExpFlag::Test, &device);
+            TimeSeriesDataset::<B>::new(&data_config, &lengths, super::ExpFlag::Test, &device);
 
         let py_tensor_stamp = TensorData::new(py_dataset_result.1, rust_dataset.data_stamp.shape());
         let rust_tensor_stamp = rust_dataset.data_stamp.to_data();

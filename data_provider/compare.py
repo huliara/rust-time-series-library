@@ -1,4 +1,4 @@
-class Dataset_ETT_hour(Dataset):
+class Dataset_Custom(Dataset):
     def __init__(
         self,
         args,
@@ -41,7 +41,6 @@ class Dataset_ETT_hour(Dataset):
 
     def __read_data__(self):
         self.scaler = StandardScaler()
-
         local_fp = os.path.join(self.root_path, self.data_path)
         cfg_name = os.path.splitext(os.path.basename(self.data_path))[0]
 
@@ -49,18 +48,21 @@ class Dataset_ETT_hour(Dataset):
             df_raw = pd.read_csv(local_fp)
         else:
             ds = load_dataset(HUGGINGFACE_REPO, name=cfg_name)
-            df_raw = ds["train"].to_pandas()
+            split_name = "train" if "train" in ds else list(ds.keys())[0]
+            df_raw = ds[split_name].to_pandas()
 
-        border1s = [
-            0,
-            12 * 30 * 24 - self.seq_len,
-            12 * 30 * 24 + 4 * 30 * 24 - self.seq_len,
-        ]
-        border2s = [
-            12 * 30 * 24,
-            12 * 30 * 24 + 4 * 30 * 24,
-            12 * 30 * 24 + 8 * 30 * 24,
-        ]
+        """
+        df_raw.columns: ['date', ...(other features), target feature]
+        """
+        cols = list(df_raw.columns)
+        cols.remove(self.target)
+        cols.remove("date")
+        df_raw = df_raw[["date"] + cols + [self.target]]
+        num_train = int(len(df_raw) * 0.7)
+        num_test = int(len(df_raw) * 0.2)
+        num_vali = len(df_raw) - num_train - num_test
+        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
+        border2s = [num_train, num_train + num_vali, len(df_raw)]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
@@ -84,7 +86,7 @@ class Dataset_ETT_hour(Dataset):
             df_stamp["day"] = df_stamp.date.apply(lambda row: row.day, 1)
             df_stamp["weekday"] = df_stamp.date.apply(lambda row: row.weekday(), 1)
             df_stamp["hour"] = df_stamp.date.apply(lambda row: row.hour, 1)
-            data_stamp = df_stamp.drop("date", axis=1).values
+            data_stamp = df_stamp.drop(["date"], 1).values
         elif self.timeenc == 1:
             data_stamp = time_features(
                 pd.to_datetime(df_stamp["date"].values), freq=self.freq

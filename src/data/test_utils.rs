@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::{
     args::{data_config::DataConfig, time_lengths::TimeLengths},
-    data::{batcher::TimeSeriesBatch, data_loader::create_data_loader, dataset::ett_hour::ExpFlag},
+    data::{
+        batcher::TimeSeriesBatch, data_loader::create_data_loader,
+        dataset::time_series_dataset::ExpFlag,
+    },
 };
 use burn::{data::dataloader::DataLoader, tensor::backend::Backend};
 

@@ -10,7 +10,9 @@ use self::exp::TaskName;
 use self::time_lengths::TimeLengths;
 use crate::{
     args::{
-        backend::Backend, column_name::ColumnName, data_config::DataConfig,
+        backend::Backend,
+        column_name::ColumnName,
+        data_config::{Data, DataConfig},
         model_config::ModelConfig,
     },
     exp::long_term_forecast::train::ExpConfig,
@@ -47,7 +49,7 @@ pub struct RootArgs {
 impl RootArgs {
     pub fn assert_column_names(&self) {
         match self.data_config.data {
-            crate::args::data_config::Data::ETTh1 => {
+            Data::ETTh1 => {
                 for column in self
                     .data_config
                     .train_features
@@ -60,7 +62,19 @@ impl RootArgs {
                     );
                 }
             }
-            _ => {}
+            Data::Exchange => {
+                for column in self
+                    .data_config
+                    .train_features
+                    .iter()
+                    .chain(self.data_config.targets.iter())
+                {
+                    assert!(
+                        matches!(column, ColumnName::open | ColumnName::high | ColumnName::low | ColumnName::close | ColumnName::tick_volume | ColumnName::spread | ColumnName::real_volume),
+                        "For ETTh1 and ETTh2 datasets, column names must be one of HUFL, HULL, MUFL, MULL, LUFL, LULL, OT"
+                    );
+                }
+            }
         }
     }
 }
