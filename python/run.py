@@ -10,7 +10,7 @@ from exp.exp_zero_shot_forecasting import Exp_Zero_Shot_Forecast
 from utils.print_args import print_args
 import random
 import numpy as np
-from args import get_args
+from python.args import get_args
 
 if __name__ == "__main__":
     fix_seed = 2021

@@ -1,6 +1,6 @@
 from data_provider.data_loader import Dataset_ETT_hour
 import numpy as np
-from _args_mock import Args_mock
+from python.data_provider._args_mock import Args_mock
 
 
 def dataset_test():
