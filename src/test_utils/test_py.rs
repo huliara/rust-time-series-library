@@ -26,7 +26,7 @@ pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
-            "_torch_forward_test".to_string(),
+            "python._torch_forward_test".to_string(),
             "torch_forward_test_multidim".to_string(),
         );
         // 5. Call the function with model_name
@@ -46,7 +46,7 @@ pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
-            "_torch_forward_test".to_string(),
+            "python._torch_forward_test".to_string(),
             "torch_forward_test_onedim".to_string(),
         );
         // 5. Call the function with model_name
@@ -90,7 +90,7 @@ pub fn execute_dataloader_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>, Vec<
     Python::attach(|py| {
         let func = get_python_fnction(
             py,
-            "_dataloader_test".to_string(),
+            "python._dataloader_test".to_string(),
             "dataloader_test".to_string(),
         );
 

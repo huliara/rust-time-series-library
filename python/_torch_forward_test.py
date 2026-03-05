@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from data_provider.data_factory import data_provider
 from exp.exp_long_term_forecasting import Exp_Long_Term_Forecast
-from python.data_provider._args_mock import Args_mock
+from _args_mock import Args_mock
 from models import (
     Autoformer,
     Transformer,

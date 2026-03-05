@@ -1,6 +1,6 @@
 from data_provider.data_loader import Dataset_ETT_hour
 import numpy as np
-from python.data_provider._args_mock import Args_mock
+from _args_mock import Args_mock
 
 
 def dataset_test():
@@ -23,6 +23,6 @@ def dataset_test():
 
 
 if __name__ == "__main__":
-    x, stamp = dataset_test()
+    x, stamp, _ = dataset_test()
     print("x shape:", x.shape)
     print("stamp shape:", stamp.shape)
