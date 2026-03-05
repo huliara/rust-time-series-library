@@ -9,10 +9,10 @@ pub struct DataConfig {
     //corresponds to features
     #[arg(long)]
     pub path: String,
-    #[arg(long)]
+    #[arg(long, num_args = 1..)]
     pub train_features: Vec<ColumnName>,
 
-    #[arg(long)]
+    #[arg(long, num_args = 1..)]
     pub targets: Vec<ColumnName>,
 
     #[arg(long, value_enum)]
@@ -73,6 +73,15 @@ pub enum Data {
 
 impl DataConfig {
     pub fn assert_column_names(&self) {
+        assert!(
+            !self.train_features.is_empty(),
+            "train_features must contain at least one column name"
+        );
+        assert!(
+            !self.targets.is_empty(),
+            "targets must contain at least one column name"
+        );
+
         match self.data {
             Data::ETTh1 => {
                 for column in self.train_features.iter().chain(self.targets.iter()) {

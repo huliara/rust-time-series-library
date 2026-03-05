@@ -154,30 +154,56 @@ impl<B: Backend> TimeSeriesDataset<B> {
                     .into_dimensionality::<ndarray::Ix2>()
                     .unwrap();
 
-                let num_train = (data_x_array.len() as f64 * 0.7) as usize;
-                let num_test = (data_x_array.len() as f64 * 0.2) as usize;
-                let num_val = data_x_array.len() - num_train - num_test;
+                if data_x_array.is_empty() || data_y_array.is_empty() {
+                    panic!(
+                        "Data arrays cannot be empty. Please check the CSV file and column names."
+                    );
+                }
 
-                let border1s = match args.data {
+                let total_rows = data_x_array.nrows();
+                let num_train = (total_rows as f64 * 0.7) as usize;
+                let num_test = (total_rows as f64 * 0.2) as usize;
+                let num_val = total_rows - num_train - num_test;
+
+                let raw_border1s = match args.data {
                     Data::ETTh1 => (
                         0,
-                        12 * 30 * 24 - lengths.seq_len,
-                        12 * 30 * 24 + 4 * 30 * 24 - lengths.seq_len,
+                        (12usize * 30 * 24).saturating_sub(lengths.seq_len),
+                        (12usize * 30 * 24 + 4 * 30 * 24).saturating_sub(lengths.seq_len),
                     ),
                     Data::Exchange => (
                         0,
-                        num_train - lengths.seq_len,
-                        data_x_array.len() - num_test - lengths.seq_len,
+                        num_train.saturating_sub(lengths.seq_len),
+                        total_rows.saturating_sub(num_test.saturating_add(lengths.seq_len)),
                     ),
                 };
-                let border2s: (usize, usize, usize) = match args.data {
+                let raw_border2s: (usize, usize, usize) = match args.data {
                     Data::ETTh1 => (
                         12 * 30 * 24,
                         12 * 30 * 24 + 4 * 30 * 24,
                         12 * 30 * 24 + 8 * 30 * 24,
                     ),
-                    Data::Exchange => (num_train, num_train + num_val, data_x_array.len()),
+                    Data::Exchange => (num_train, num_train + num_val, total_rows),
                 };
+
+                let clamp_idx = |idx: usize| idx.min(total_rows);
+                let border1s = (
+                    clamp_idx(raw_border1s.0),
+                    clamp_idx(raw_border1s.1),
+                    clamp_idx(raw_border1s.2),
+                );
+                let border2s = (
+                    clamp_idx(raw_border2s.0),
+                    clamp_idx(raw_border2s.1),
+                    clamp_idx(raw_border2s.2),
+                );
+
+                if border2s.0 <= border1s.0 {
+                    panic!(
+                        "Invalid train split range: start={}, end={}, total_rows={}",
+                        border1s.0, border2s.0, total_rows
+                    );
+                }
 
                 let (start_idx, end_idx) = match flag {
                     ExpFlag::Train => (border1s.0, border2s.0),
@@ -201,7 +227,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
 
                 let data_y_array = target_scaler.transform(&data_y_array);
 
-                let slice_len = end_idx - start_idx;
+                let slice_len = end_idx.saturating_sub(start_idx);
 
                 let data_stamp_array: Array2<f64> = match args.embed {
                     TimeEmbed::Fixed => {
