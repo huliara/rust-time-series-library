@@ -51,38 +51,46 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         for (i, batch) in dataloader_test.iter().enumerate() {
             let output =
                 model.forecast(batch.x.clone(), batch.x_mark, batch.y.clone(), batch.y_mark);
-            if i % 20 == 0 {
-                let feature_idx = batch.x.dims()[2] - 1;
-                let context_vec = batch
-                    .x
-                    .clone()
-                    .slice(s![0, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-                let pred_vec = output
-                    .clone()
-                    .slice(s![0, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-                let future_vec = batch
-                    .y
-                    .clone()
-                    .slice(s![0, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-                plot_single_prediction(exp_root_path, i, &context_vec, &pred_vec, &future_vec);
-            }
             _contexts.push(batch.x);
             _predicts.push(output);
             _futures.push(batch.y);
         }
+
         let contexts = Tensor::cat(_contexts, 0);
         let predicts = Tensor::cat(_predicts, 0);
         let futures = Tensor::cat(_futures, 0);
         let error = predicts.clone() - futures.clone();
+        let plot_offset = contexts.dims()[1] / 10;
+
+        for i in 0..10 {
+            let feature_idx = contexts.dims()[2] - 1;
+            let context_vec = contexts
+                .clone()
+                .slice(s![i * plot_offset, .., feature_idx])
+                .into_data()
+                .to_vec::<f32>()
+                .unwrap();
+            let pred_vec = predicts
+                .clone()
+                .slice(s![i * plot_offset, .., feature_idx])
+                .into_data()
+                .to_vec::<f32>()
+                .unwrap();
+            let future_vec = futures
+                .clone()
+                .slice(s![i * plot_offset, .., feature_idx])
+                .into_data()
+                .to_vec::<f32>()
+                .unwrap();
+            plot_single_prediction(
+                exp_root_path,
+                i + 1000,
+                &context_vec,
+                &pred_vec,
+                &future_vec,
+            );
+        }
+
         save_results(exp_root_path, error, contexts);
     }
 }
