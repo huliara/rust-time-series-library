@@ -11,6 +11,7 @@ use burn::{
     data::dataset::Dataset,
     tensor::{backend::Backend, Tensor, TensorData},
 };
+use chrono::{DateTime, Datelike, NaiveDateTime, Timelike};
 use ndarray::{s, Array1, Array2, Axis};
 use polars::prelude::*;
 use std::path::PathBuf;
@@ -71,6 +72,38 @@ pub enum ExpFlag {
 }
 
 impl<B: Backend> TimeSeriesDataset<B> {
+    fn parse_dates(
+        df: &DataFrame,
+        data_type: &Data,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
+        match data_type {
+            Data::ETTh1 => df
+                .slice(start_idx as i64, slice_len)
+                .column("date")
+                .unwrap()
+                .str()
+                .unwrap()
+                .into_no_null_iter()
+                .map(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").expect("Parse date"))
+                .collect(),
+            Data::Exchange => df
+                .slice(start_idx as i64, slice_len)
+                .column("time")
+                .unwrap()
+                .i64()
+                .unwrap()
+                .into_no_null_iter()
+                .map(|s| {
+                    DateTime::from_timestamp(s, 0)
+                        .expect("Parse date")
+                        .naive_utc()
+                })
+                .collect(),
+        }
+    }
+
     pub fn new(
         args: &DataConfig,
         lengths: &TimeLengths,
@@ -172,20 +205,8 @@ impl<B: Backend> TimeSeriesDataset<B> {
 
                 let data_stamp_array: Array2<f64> = match args.embed {
                     TimeEmbed::Fixed => {
-                        use chrono::{Datelike, Timelike};
-                        let dates: Vec<chrono::NaiveDateTime> = df
-                            .slice(start_idx as i64, slice_len)
-                            .column("date")
-                            .unwrap()
-                            .str()
-                            .unwrap()
-                            .into_no_null_iter()
-                            .map(|s| {
-                                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
-                                    .expect("Parse date")
-                            })
-                            .collect();
-
+                        let dates: Vec<NaiveDateTime> =
+                            Self::parse_dates(&df, &args.data, start_idx, slice_len);
                         let month: Vec<f64> = dates.iter().map(|d| d.month() as f64).collect();
                         let day: Vec<f64> = dates.iter().map(|d| d.day() as f64).collect();
                         let weekday: Vec<f64> = dates
@@ -207,18 +228,8 @@ impl<B: Backend> TimeSeriesDataset<B> {
                             .unwrap()
                     }
                     TimeEmbed::TimeF => {
-                        let dates: Vec<chrono::NaiveDateTime> = df
-                            .slice(start_idx as i64, slice_len)
-                            .column("date")
-                            .unwrap()
-                            .str()
-                            .unwrap()
-                            .into_no_null_iter()
-                            .map(|s| {
-                                chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
-                                    .expect("Parse date")
-                            })
-                            .collect();
+                        let dates: Vec<NaiveDateTime> =
+                            Self::parse_dates(&df, &args.data, start_idx, slice_len);
                         time_features(&dates, "h")
                     }
                 };
@@ -308,7 +319,7 @@ mod tests {
     };
     use burn::tensor::TensorData;
     #[test]
-    fn test_ett_hour_dataset() {
+    fn test_time_series_dataset() {
         type B = burn::backend::wgpu::Wgpu;
         let py_dataset_result = execute_dataset_test().unwrap();
         let device = Default::default();
