@@ -24,22 +24,22 @@ impl Default for DataConfig {
             data: Data::ETTh1,
             path: "ETT/ETTh1.csv".to_string(),
             train_features: vec![
-                ColumnName::HUFL,
-                ColumnName::HULL,
-                ColumnName::MUFL,
-                ColumnName::MULL,
-                ColumnName::LUFL,
-                ColumnName::LULL,
-                ColumnName::OT,
+                ColumnName::Hufl,
+                ColumnName::Hull,
+                ColumnName::Mufl,
+                ColumnName::Mull,
+                ColumnName::Lufl,
+                ColumnName::Lull,
+                ColumnName::Ot,
             ],
             targets: vec![
-                ColumnName::HUFL,
-                ColumnName::HULL,
-                ColumnName::MUFL,
-                ColumnName::MULL,
-                ColumnName::LUFL,
-                ColumnName::LULL,
-                ColumnName::OT,
+                ColumnName::Hufl,
+                ColumnName::Hull,
+                ColumnName::Mufl,
+                ColumnName::Mull,
+                ColumnName::Lufl,
+                ColumnName::Lull,
+                ColumnName::Ot,
             ],
             embed: TimeEmbed::TimeF,
         }
@@ -69,4 +69,27 @@ impl fmt::Display for DataConfig {
 pub enum Data {
     ETTh1,
     Exchange,
+}
+
+impl DataConfig {
+    pub fn assert_column_names(&self) {
+        match self.data {
+            Data::ETTh1 => {
+                for column in self.train_features.iter().chain(self.targets.iter()) {
+                    assert!(
+                        matches!(column, ColumnName::Hufl | ColumnName::Hull | ColumnName::Mufl | ColumnName::Mull | ColumnName::Lufl | ColumnName::Lull | ColumnName::Ot),
+                        "For ETTh1 and ETTh2 datasets, column names must be one of HUFL, HULL, MUFL, MULL, LUFL, LULL, OT"
+                    );
+                }
+            }
+            Data::Exchange => {
+                for column in self.train_features.iter().chain(self.targets.iter()) {
+                    assert!(
+                        matches!(column, ColumnName::Open | ColumnName::High | ColumnName::Low | ColumnName::Close | ColumnName::TickVolume | ColumnName::Spread | ColumnName::RealVolume),
+                        "For Exchange dataset, column names must be one of open, high, low, close, tick_volume, spread, real_volume"
+                    );
+                }
+            }
+        }
+    }
 }

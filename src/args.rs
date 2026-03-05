@@ -9,12 +9,7 @@ pub mod time_lengths;
 use self::exp::TaskName;
 use self::time_lengths::TimeLengths;
 use crate::{
-    args::{
-        backend::Backend,
-        column_name::ColumnName,
-        data_config::{Data, DataConfig},
-        model_config::ModelConfig,
-    },
+    args::{backend::Backend, data_config::DataConfig, model_config::ModelConfig},
     exp::long_term_forecast::train::ExpConfig,
 };
 use clap::Parser;
@@ -44,37 +39,4 @@ pub struct RootArgs {
 
     #[arg(long, default_value = "./checkpoints/")]
     pub checkpoints: String,
-}
-
-impl RootArgs {
-    pub fn assert_column_names(&self) {
-        match self.data_config.data {
-            Data::ETTh1 => {
-                for column in self
-                    .data_config
-                    .train_features
-                    .iter()
-                    .chain(self.data_config.targets.iter())
-                {
-                    assert!(
-                        matches!(column, ColumnName::HUFL | ColumnName::HULL | ColumnName::MUFL | ColumnName::MULL | ColumnName::LUFL | ColumnName::LULL | ColumnName::OT),
-                        "For ETTh1 and ETTh2 datasets, column names must be one of HUFL, HULL, MUFL, MULL, LUFL, LULL, OT"
-                    );
-                }
-            }
-            Data::Exchange => {
-                for column in self
-                    .data_config
-                    .train_features
-                    .iter()
-                    .chain(self.data_config.targets.iter())
-                {
-                    assert!(
-                        matches!(column, ColumnName::open | ColumnName::high | ColumnName::low | ColumnName::close | ColumnName::tick_volume | ColumnName::spread | ColumnName::real_volume),
-                        "For ETTh1 and ETTh2 datasets, column names must be one of HUFL, HULL, MUFL, MULL, LUFL, LULL, OT"
-                    );
-                }
-            }
-        }
-    }
 }

@@ -19,8 +19,8 @@ pub fn assert_module_forecast<B: Backend, M: Forecast<B>>(dim: Dim, module: M) {
     let data_config = match dim {
         Dim::Multidim => DataConfig::default(),
         Dim::Onedim => DataConfig {
-            train_features: vec![ColumnName::OT],
-            targets: vec![ColumnName::OT],
+            train_features: vec![ColumnName::Ot],
+            targets: vec![ColumnName::Ot],
             ..DataConfig::default()
         },
     };
