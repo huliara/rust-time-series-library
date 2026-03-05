@@ -6,6 +6,6 @@ cargo run -- \
     --train-features open low\
     --targets high  \
     --embed time-f \
-    --path v2/USDJPY/m1/20020101-20250810.csv\
+    --path v2/USDJPY/d1/20020101-20250810.csv\
     patch-tst \
     --activation gelu
