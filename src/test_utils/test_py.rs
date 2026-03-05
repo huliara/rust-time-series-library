@@ -13,8 +13,15 @@ pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bo
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Invalid path"))
         .unwrap();
 
+    let python_subdir = current_dir.join("python");
+    let python_subdir_str = python_subdir
+        .to_str()
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Invalid path"))
+        .unwrap();
+
     let path = sys.getattr("path").unwrap();
     path.call_method1("append", (current_dir_str,)).unwrap();
+    path.call_method1("append", (python_subdir_str,)).unwrap();
 
     // 3. Import the module
     let module = py.import(name).unwrap();
@@ -26,7 +33,7 @@ pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
-            "python._torch_forward_test".to_string(),
+            "_torch_forward_test".to_string(),
             "torch_forward_test_multidim".to_string(),
         );
         // 5. Call the function with model_name
@@ -46,7 +53,7 @@ pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
         let func = get_python_fnction(
             py,
-            "python._torch_forward_test".to_string(),
+            "_torch_forward_test".to_string(),
             "torch_forward_test_onedim".to_string(),
         );
         // 5. Call the function with model_name
@@ -61,7 +68,7 @@ pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
 
 pub fn execute_dataset_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
     Python::attach(|py| {
-        let func = get_python_fnction(py, "_dataset_test".to_string(), "dataset_test".to_string());
+        let func = get_python_fnction(py, "_dataset_test".to_string(), "dataset_test".to_string()); // python/ は sys.path に追加済み
 
         // 5. Call the function
         let result = func.call0()?;
@@ -90,7 +97,7 @@ pub fn execute_dataloader_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>, Vec<
     Python::attach(|py| {
         let func = get_python_fnction(
             py,
-            "python._dataloader_test".to_string(),
+            "_dataloader_test".to_string(),
             "dataloader_test".to_string(),
         );
 
