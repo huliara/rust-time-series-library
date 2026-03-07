@@ -1,28 +1,6 @@
-[package]
-name = "rust-time-series-library"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-burn = { version = "0.20.0", features = ["wgpu", "train"] }
-burn-ndarray = "0.20.0"
-burn-wgpu = "0.20.0"
-tokio = { version = "1.0", features = ["full"] }
-clap = { version = "4.0", features = ["derive"] }
-serde = { version = "1.0", features = ["derive"] }
-anyhow = "1.0"
-rand = "0.8"
-csv = "1.3"
-polars = {version="0.52.0",features=["lazy","timezones","ndarray"]}
-burn-tensor = "0.19.1"
-pyo3 = {version="0.27.2",features = ["auto-initialize"]}
-chrono = "0.4.43"
-ndarray = "0.16.1"
-num-traits = "0.2.19"
-plotters = "0.3.7"
-serde_yaml = "0.9.34"
-strum = { version = "0.28.0", features = ["derive"] }
-rustpython-parser = "0.4.0"
-
-[dev-dependencies]
-tempfile = "3.26.0"
+[workspace]
+resolver="3"
+members=[
+    "main",
+    "py_parser",
+]

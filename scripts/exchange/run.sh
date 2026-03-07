@@ -1,5 +1,5 @@
-cargo run -- \
-    --num-epochs 10 \
+cargo run -p main  -- \
+    --num-epochs 1 \
     --task-name long-term-forecast \
     --backend wgpu \
     --data exchange \

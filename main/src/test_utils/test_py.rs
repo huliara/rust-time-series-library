@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use std::env;
 
+use crate::env_path::get_python_path;
+
 pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bound<'_, PyAny> {
     let sys = py.import("sys").unwrap();
 
@@ -13,7 +15,7 @@ pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bo
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Invalid path"))
         .unwrap();
 
-    let python_subdir = current_dir.join("python");
+    let python_subdir = current_dir.join(get_python_path());
     let python_subdir_str = python_subdir
         .to_str()
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>("Invalid path"))

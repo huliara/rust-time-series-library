@@ -4241,6 +4241,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "main"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "burn-tensor 0.19.1",
+ "burn-wgpu",
+ "chrono",
+ "clap",
+ "csv",
+ "ndarray 0.16.1",
+ "num-traits",
+ "plotters",
+ "polars",
+ "pyo3",
+ "rand 0.8.5",
+ "serde",
+ "serde_yaml",
+ "strum 0.28.0",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "malachite"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5786,6 +5811,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "py_parser"
+version = "0.1.0"
+dependencies = [
+ "rustpython-parser",
+]
+
+[[package]]
 name = "pyo3"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6400,32 +6432,6 @@ dependencies = [
  "hashlink",
  "libsqlite3-sys",
  "smallvec",
-]
-
-[[package]]
-name = "rust-time-series-library"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "burn",
- "burn-ndarray",
- "burn-tensor 0.19.1",
- "burn-wgpu",
- "chrono",
- "clap",
- "csv",
- "ndarray 0.16.1",
- "num-traits",
- "plotters",
- "polars",
- "pyo3",
- "rand 0.8.5",
- "rustpython-parser",
- "serde",
- "serde_yaml",
- "strum 0.28.0",
- "tempfile",
- "tokio",
 ]
 
 [[package]]
