@@ -1,4 +1,4 @@
-cargo run -p main  -- \
+cd main && cargo run -p main  -- \
     --num-epochs 1 \
     --task-name long-term-forecast \
     --backend wgpu \
