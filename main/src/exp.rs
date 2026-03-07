@@ -6,9 +6,10 @@ use crate::{
     args::{
         data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths, RootArgs,
     },
-    env_path::get_result_root_path,
     exp::long_term_forecast::train::ExpConfig,
 };
+
+use lib::env_path::get_result_root_path;
 
 fn get_model_args_string(model_config: &ModelConfig) -> String {
     match model_config {

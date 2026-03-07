@@ -183,7 +183,7 @@ mod tests {
     use burn::tensor::Distribution;
     use burn_ndarray::NdArray;
 
-    use crate::env_path::get_result_root_path;
+    use lib::env_path::get_result_root_path;
     use std::fs;
 
     use super::*;

@@ -1,7 +1,6 @@
 mod activation;
 mod args;
 mod data;
-mod env_path;
 mod exp;
 mod layers;
 mod models;
