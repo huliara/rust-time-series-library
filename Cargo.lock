@@ -5823,6 +5823,9 @@ dependencies = [
 name = "py_parser"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "clap",
+ "rustpython-ast",
  "rustpython-parser",
 ]
 
