@@ -1,13 +1,13 @@
 mod ast_visitor;
-mod build_config_str;
 mod build_forward_str;
-mod codegen;
+mod build_main_model_config;
+mod build_sub_model_config;
 mod layer_map;
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::{
     fs,
-    io::{self, Read, Write},
+    io::{self, Write},
     path::PathBuf,
 };
 
@@ -60,29 +60,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// デバッグ用: モデル情報をテキストとして出力
-fn dump_models(models: &[ast_visitor::ModelInfo]) -> String {
-    let mut out = String::new();
-    for m in models {
-        out.push_str(&format!("=== class {} ===\n", m.class_name));
-        out.push_str("  fields:\n");
-        for f in &m.fields {
-            out.push_str(&format!(
-                "    - {}: {} = {}\n",
-                f.name, f.layer_info.burn_type, f.init_expr
-            ));
-        }
-        out.push_str(&format!("  forward_args: {:?}\n", m.forward_args));
-        out.push_str("  forward_stmts:\n");
-        for s in &m.forward_stmts {
-            out.push_str(&format!("    {}\n", s));
-        }
-        if let Some(ret) = &m.return_expr {
-            out.push_str(&format!("  return: {}\n", ret));
-        }
-        out.push('\n');
-    }
-    out
 }

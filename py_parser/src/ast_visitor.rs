@@ -1,32 +1,12 @@
 use crate::{
-    build_config_str::build_config_str,
-    build_forward_str::{self, build_forward_str},
+    build_forward_str::build_fn_str,
+    build_main_model_config::build_main_model_config,
+    build_sub_model_config::build_sub_model_config,
     layer_map::{LayerInfo, fn_table, layer_table},
 };
 use anyhow::{Result, bail};
 use rustpython_parser::ast::*;
 use std::collections::HashMap;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Data structures
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone)]
-pub struct ModelField {
-    pub name: String,
-    pub layer_info: LayerInfo,
-    pub init_expr: String, // Burn の Config::new(...).init(device) 形式
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct ModelInfo {
-    pub class_name: String,
-    pub fields: Vec<ModelField>,
-    pub init_args: Vec<String>,
-    pub forward_args: Vec<String>,
-    pub forward_stmts: Vec<String>,
-    pub return_expr: Option<String>,
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point
@@ -67,17 +47,19 @@ fn is_nn_module(cls: &StmtClassDef) -> bool {
 fn extract_class(cls: &StmtClassDef) -> Option<String> {
     let mut code = String::new();
     let table = layer_table();
+    let class_name = cls.name.to_string();
 
     let mut has_init = false;
     for stmt in &cls.body {
         match stmt {
             Stmt::FunctionDef(f) if f.name.as_str() == "__init__" => {
                 has_init = true;
-                code.push_str(&extract_init(f, &table));
+                code.push_str(&extract_init(&class_name, f, &table));
             }
             Stmt::FunctionDef(f) if f.name.as_str() == "forward" => {
                 code.push_str(&extract_forward(f, &table))
             }
+            Stmt::FunctionDef(f) => code.push_str(&extract_forward(f, &table)),
             _ => {}
         }
     }
@@ -103,7 +85,11 @@ fn extract_config_arg(value: Expr) -> Option<String> {
 // __init__ extraction
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn extract_init(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> String {
+fn extract_init(
+    class_name: &String,
+    func: &StmtFunctionDef,
+    table: &HashMap<&str, LayerInfo>,
+) -> String {
     let mut init_args: Vec<String> = Vec::new();
     let mut model_fields: Vec<String> = Vec::new();
     let mut init_body: Vec<String> = Vec::new();
@@ -125,33 +111,16 @@ fn extract_init(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> Str
                 if let Some(init_arg) = extract_config_arg(value.clone()) {
                     init_args.push(init_arg.clone());
                     value_str = format!("self.model_args.{}", init_arg);
+                } else if let Some((layer_key, call)) = extract_nn_call(&value)
+                    && let Some(info) = table.get(layer_key.as_str())
+                {
+                    value_str = build_init_expr(info, layer_key.as_str(), call);
                 } else {
-                    if let Some((layer_key, call)) = extract_nn_call(&value)
-                        && let Some(info) = table.get(layer_key.as_str())
-                    {
-                        value_str = build_init_expr(info, layer_key.as_str(), call);
-                    } else {
-                        value_str = convert_expr(&value, &fn_table(), table);
-                    }
+                    value_str = convert_expr(&value, &fn_table(), table);
                 };
 
                 if let Some(field_name) = self_attr_name(target) {
-                    match value {
-                        Expr::Call(ref call) => {
-                            if let Some((layer_key, call)) = extract_nn_call(&value) {
-                                if let Some(info) = table.get(layer_key.as_str()) {
-                                    model_fields
-                                        .push(format!("pub {}: {},", field_name, info.burn_type));
-                                } else {
-                                    model_fields
-                                        .push(format!("pub {}: {},", field_name, layer_key));
-                                }
-                            }
-                        }
-                        _ => {
-                            model_fields.push(format!("pub {}: ,", field_name));
-                        }
-                    };
+                    model_fields.push(field_name.clone());
                     target_name = field_name.clone();
                     init_body.push(format!("let self.{} = {};", target_name, value_str));
                 } else {
@@ -159,12 +128,36 @@ fn extract_init(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> Str
                     init_body.push(format!("let {} = {};", target_name, value_str));
                 };
             }
+            Stmt::Assign(assign) => {
+                if let Some(target_name) = self_attr_name(&assign.targets[0]) {
+                    let value_str = convert_expr(&assign.value, &fn_table(), table);
+                    model_fields.push(target_name.clone());
+                    init_body.push(format!("let {} = {};", target_name, value_str));
+                } else {
+                    let target = if assign.targets.len() == 1 {
+                        expr_to_raw(&assign.targets[0])
+                    } else {
+                        assign
+                            .targets
+                            .iter()
+                            .map(expr_to_raw)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    };
+                    let value_str = convert_expr(&assign.value, &fn_table(), table);
+                    init_body.push(format!("let {} = {};", target, value_str));
+                }
+            }
             _ => {
                 init_body.push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
             }
         }
     }
-    build_config_str(init_args, model_fields, init_body)
+    if class_name == "Model" {
+        build_main_model_config(class_name, init_args, model_fields, init_body)
+    } else {
+        build_sub_model_config(class_name, init_args, model_fields, init_body)
+    }
 }
 
 /// nn.XXX(...) / torch.nn.XXX(...) の `(layer_key, call)` を返す
@@ -367,7 +360,7 @@ fn extract_forward(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> 
             }
         }
     }
-    build_forward_str(args, body)
+    build_fn_str(func.name.to_string(), args, body)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -535,12 +528,12 @@ fn convert_call(
             .collect();
 
         // self.layer(x)  → self.layer.forward(x)  (if layer is a module)
-        if let Expr::Name(n) = attr.value.as_ref() {
-            if n.id.as_str() == "self" {
-                let field_name = attr.attr.as_str();
+        if let Expr::Name(n) = attr.value.as_ref()
+            && n.id.as_str() == "self"
+        {
+            let field_name = attr.attr.as_str();
 
-                return format!("self.{}.forward({})", field_name, args.join(", "));
-            }
+            return format!("self.{}.forward({})", field_name, args.join(", "));
         }
 
         return convert_method_call(&receiver, method, &args, &kwargs);
