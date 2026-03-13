@@ -1,4 +1,8 @@
-use crate::layer_map::{LayerInfo, fn_table, layer_table};
+use crate::{
+    build_config_str::build_config_str,
+    build_forward_str::{self, build_forward_str},
+    layer_map::{LayerInfo, fn_table, layer_table},
+};
 use anyhow::{Result, bail};
 use rustpython_parser::ast::*;
 use std::collections::HashMap;
@@ -18,6 +22,7 @@ pub struct ModelField {
 pub struct ModelInfo {
     pub class_name: String,
     pub fields: Vec<ModelField>,
+    pub init_args: Vec<String>,
     pub forward_args: Vec<String>,
     pub forward_stmts: Vec<String>,
     pub return_expr: Option<String>,
@@ -27,19 +32,19 @@ pub struct ModelInfo {
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub fn extract_models(source: &str) -> Result<Vec<ModelInfo>> {
+pub fn extract_models(source: &str) -> Result<String> {
     let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<input>")?;
     let Mod::Module(module) = ast else {
         bail!("expected Module");
     };
 
-    let mut models = Vec::new();
+    let mut models: String = String::new();
     for stmt in &module.body {
         if let Stmt::ClassDef(cls) = stmt
             && is_nn_module(cls)
             && let Some(info) = extract_class(cls)
         {
-            models.push(info);
+            models.push_str(&info);
         }
     }
     Ok(models)
@@ -59,11 +64,8 @@ fn is_nn_module(cls: &StmtClassDef) -> bool {
     })
 }
 
-fn extract_class(cls: &StmtClassDef) -> Option<ModelInfo> {
-    let mut info = ModelInfo {
-        class_name: cls.name.to_string(),
-        ..Default::default()
-    };
+fn extract_class(cls: &StmtClassDef) -> Option<String> {
+    let mut code = String::new();
     let table = layer_table();
 
     let mut has_init = false;
@@ -71,11 +73,10 @@ fn extract_class(cls: &StmtClassDef) -> Option<ModelInfo> {
         match stmt {
             Stmt::FunctionDef(f) if f.name.as_str() == "__init__" => {
                 has_init = true;
-                extract_init(f, &table, &mut info);
+                code.push_str(&extract_init(f, &table));
             }
             Stmt::FunctionDef(f) if f.name.as_str() == "forward" => {
-                let fields_snap: Vec<ModelField> = info.fields.clone();
-                extract_forward(f, &fields_snap, &table, &mut info);
+                code.push_str(&extract_forward(f, &table))
             }
             _ => {}
         }
@@ -84,51 +85,86 @@ fn extract_class(cls: &StmtClassDef) -> Option<ModelInfo> {
     if !has_init {
         return None;
     }
-    Some(info)
+    Some(code)
+}
+
+fn extract_config_arg(value: Expr) -> Option<String> {
+    if let Expr::Attribute(attribute) = value
+        && let Expr::Name(name) = *attribute.value
+        && (*name.id == *"configs" || *name.id == *"config")
+    {
+        Some(attribute.attr.to_string())
+    } else {
+        None
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // __init__ extraction
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn extract_init(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>, info: &mut ModelInfo) {
-    for stmt in &func.body {
-        if let Stmt::Assign(assign) = stmt {
-            // self.xxx = nn.Yyy(...)
-            if assign.targets.len() != 1 {
-                continue;
-            }
-            let target = &assign.targets[0];
-            let Some(field_name) = self_attr_name(target) else {
-                continue;
-            };
-            let Some((layer_key, call)) = extract_nn_call(&assign.value) else {
-                continue;
-            };
-            let Some(layer_info) = table.get(layer_key.as_str()).cloned() else {
-                // Unknown layer – emit a comment
-                info.fields.push(ModelField {
-                    name: field_name,
-                    layer_info: LayerInfo {
-                        burn_type: "/* unknown */",
-                        burn_import: "",
-                        config_type: "",
-                        needs_device: false,
-                        needs_backend: false,
-                        is_module: true,
-                    },
-                    init_expr: format!("/* TODO: {} */", expr_to_raw(&assign.value)),
-                });
-                continue;
-            };
-            let init_expr = build_init_expr(&layer_info, &layer_key, call);
-            info.fields.push(ModelField {
-                name: field_name,
-                layer_info,
-                init_expr,
-            });
+fn extract_init(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> String {
+    let mut init_args: Vec<String> = Vec::new();
+    let mut model_fields: Vec<String> = Vec::new();
+    let mut init_body: Vec<String> = Vec::new();
+
+    for arg in func.args.args.iter().skip(1) {
+        if &arg.def.arg != "device" && &arg.def.arg != "configs" {
+            init_args.push(arg.def.arg.to_string());
         }
     }
+
+    for stmt in &func.body {
+        match stmt {
+            Stmt::AnnAssign(assign) => {
+                let target = &assign.target;
+                let value: Expr = *assign.value.clone().unwrap();
+                let target_name: std::string::String;
+                let value_str: std::string::String;
+
+                if let Some(init_arg) = extract_config_arg(value.clone()) {
+                    init_args.push(init_arg.clone());
+                    value_str = format!("self.model_args.{}", init_arg);
+                } else {
+                    if let Some((layer_key, call)) = extract_nn_call(&value)
+                        && let Some(info) = table.get(layer_key.as_str())
+                    {
+                        value_str = build_init_expr(info, layer_key.as_str(), call);
+                    } else {
+                        value_str = convert_expr(&value, &fn_table(), table);
+                    }
+                };
+
+                if let Some(field_name) = self_attr_name(target) {
+                    match value {
+                        Expr::Call(ref call) => {
+                            if let Some((layer_key, call)) = extract_nn_call(&value) {
+                                if let Some(info) = table.get(layer_key.as_str()) {
+                                    model_fields
+                                        .push(format!("pub {}: {},", field_name, info.burn_type));
+                                } else {
+                                    model_fields
+                                        .push(format!("pub {}: {},", field_name, layer_key));
+                                }
+                            }
+                        }
+                        _ => {
+                            model_fields.push(format!("pub {}: ,", field_name));
+                        }
+                    };
+                    target_name = field_name.clone();
+                    init_body.push(format!("let self.{} = {};", target_name, value_str));
+                } else {
+                    target_name = expr_to_raw(target);
+                    init_body.push(format!("let {} = {};", target_name, value_str));
+                };
+            }
+            _ => {
+                init_body.push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
+            }
+        }
+    }
+    build_config_str(init_args, model_fields, init_body)
 }
 
 /// nn.XXX(...) / torch.nn.XXX(...) の `(layer_key, call)` を返す
@@ -287,27 +323,19 @@ fn build_init_expr(info: &LayerInfo, layer_key: &str, call: &ExprCall) -> String
 // forward extraction
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn extract_forward(
-    func: &StmtFunctionDef,
-    fields: &[ModelField],
-    table: &HashMap<&str, LayerInfo>,
-    info: &mut ModelInfo,
-) {
-    // args (excluding self)
-    for arg in func.args.args.iter().skip(1) {
-        info.forward_args.push(arg.def.arg.to_string());
-    }
+fn extract_forward(func: &StmtFunctionDef, table: &HashMap<&str, LayerInfo>) -> String {
+    let mut body: Vec<String> = Vec::new();
+    let mut args: Vec<String> = Vec::new();
 
-    let module_fields: HashMap<String, &LayerInfo> = fields
-        .iter()
-        .map(|f| (f.name.clone(), &f.layer_info))
-        .collect();
+    for arg in func.args.args.iter().skip(1) {
+        args.push(arg.def.arg.to_string());
+    }
 
     for stmt in &func.body {
         match stmt {
             Stmt::Return(ret) => {
                 if let Some(val) = &ret.value {
-                    info.return_expr = Some(stmt_expr_to_burn(val, &module_fields, table));
+                    body.push(stmt_expr_to_burn(val, table));
                 }
             }
             Stmt::Assign(assign) => {
@@ -321,45 +349,38 @@ fn extract_forward(
                         .collect::<Vec<_>>()
                         .join(", ")
                 };
-                let rhs = stmt_expr_to_burn(&assign.value, &module_fields, table);
-                info.forward_stmts
-                    .push(format!("let {} = {};", target, rhs));
+                let rhs = stmt_expr_to_burn(&assign.value, table);
+                body.push(format!("let {} = {};", target, rhs));
             }
             Stmt::AugAssign(aug) => {
                 let target = expr_to_raw(&aug.target);
                 let op = binop_to_burn(&aug.op);
-                let rhs = stmt_expr_to_burn(&aug.value, &module_fields, table);
-                info.forward_stmts
-                    .push(format!("let {} = {} {} {};", target, target, op, rhs));
+                let rhs = stmt_expr_to_burn(&aug.value, table);
+                body.push(format!("let {} = {} {} {};", target, target, op, rhs));
             }
             Stmt::Expr(e) => {
-                let s = stmt_expr_to_burn(&e.value, &module_fields, table);
-                info.forward_stmts.push(format!("{};", s));
+                let s = stmt_expr_to_burn(&e.value, table);
+                body.push(format!("{};", s));
             }
             _ => {
-                info.forward_stmts
-                    .push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
+                body.push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
             }
         }
     }
+    build_forward_str(args, body)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Expression conversion: Python → Burn Rust
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub fn stmt_expr_to_burn(
-    expr: &Expr,
-    module_fields: &HashMap<String, &LayerInfo>,
-    table: &HashMap<&str, LayerInfo>,
-) -> String {
+pub fn stmt_expr_to_burn(expr: &Expr, table: &HashMap<&str, LayerInfo>) -> String {
     let fn_map = fn_table();
-    convert_expr(expr, module_fields, &fn_map, table)
+    convert_expr(expr, &fn_map, table)
 }
 
 fn convert_expr(
     expr: &Expr,
-    mf: &HashMap<String, &LayerInfo>,
     fn_map: &HashMap<&str, &str>,
     table: &HashMap<&str, LayerInfo>,
 ) -> String {
@@ -381,19 +402,19 @@ fn convert_expr(
 
         // ── attribute access ────────────────────────────────────────────────
         Expr::Attribute(attr) => {
-            let owner = convert_expr(&attr.value, mf, fn_map, table);
+            let owner = convert_expr(&attr.value, fn_map, table);
             let field = attr.attr.as_str();
             // self.xxx → keep as self.xxx (forward() in Burn calls methods directly)
             format!("{}.{}", owner, field)
         }
 
         // ── function call ────────────────────────────────────────────────────
-        Expr::Call(call) => convert_call(call, mf, fn_map, table),
+        Expr::Call(call) => convert_call(call, fn_map, table),
 
         // ── binary operator ──────────────────────────────────────────────────
         Expr::BinOp(binop) => {
-            let left = convert_expr(&binop.left, mf, fn_map, table);
-            let right = convert_expr(&binop.right, mf, fn_map, table);
+            let left = convert_expr(&binop.left, fn_map, table);
+            let right = convert_expr(&binop.right, fn_map, table);
             match &binop.op {
                 Operator::MatMult => format!("{}.matmul({})", left, right),
                 Operator::Pow => format!("{}.powf({})", left, right),
@@ -403,7 +424,7 @@ fn convert_expr(
 
         // ── unary operator ───────────────────────────────────────────────────
         Expr::UnaryOp(u) => {
-            let operand = convert_expr(&u.operand, mf, fn_map, table);
+            let operand = convert_expr(&u.operand, fn_map, table);
             match &u.op {
                 UnaryOp::USub => format!("-{}", operand),
                 UnaryOp::UAdd => operand,
@@ -417,7 +438,7 @@ fn convert_expr(
             let elts: Vec<_> = t
                 .elts
                 .iter()
-                .map(|e| convert_expr(e, mf, fn_map, table))
+                .map(|e| convert_expr(e, fn_map, table))
                 .collect();
             format!("({})", elts.join(", "))
         }
@@ -425,23 +446,23 @@ fn convert_expr(
             let elts: Vec<_> = l
                 .elts
                 .iter()
-                .map(|e| convert_expr(e, mf, fn_map, table))
+                .map(|e| convert_expr(e, fn_map, table))
                 .collect();
             format!("[{}]", elts.join(", "))
         }
 
         // ── subscript (indexing) ─────────────────────────────────────────────
         Expr::Subscript(s) => {
-            let val = convert_expr(&s.value, mf, fn_map, table);
-            let idx = convert_expr(&s.slice, mf, fn_map, table);
+            let val = convert_expr(&s.value, fn_map, table);
+            let idx = convert_expr(&s.slice, fn_map, table);
             format!("{}[{}]", val, idx)
         }
 
         // ── ternary (if-else) ────────────────────────────────────────────────
         Expr::IfExp(ife) => {
-            let cond = convert_expr(&ife.test, mf, fn_map, table);
-            let body = convert_expr(&ife.body, mf, fn_map, table);
-            let orelse = convert_expr(&ife.orelse, mf, fn_map, table);
+            let cond = convert_expr(&ife.test, fn_map, table);
+            let body = convert_expr(&ife.body, fn_map, table);
+            let orelse = convert_expr(&ife.orelse, fn_map, table);
             format!("if {} {{ {} }} else {{ {} }}", cond, body, orelse)
         }
 
@@ -451,7 +472,6 @@ fn convert_expr(
 
 fn convert_call(
     call: &ExprCall,
-    mf: &HashMap<String, &LayerInfo>,
     fn_map: &HashMap<&str, &str>,
     table: &HashMap<&str, LayerInfo>,
 ) -> String {
@@ -459,7 +479,7 @@ fn convert_call(
 
     // ── torch.cat / torch.stack ───────────────────────────────────────────
     if matches!(func_raw.as_str(), "torch.cat" | "torch.stack") {
-        return convert_cat_stack(call, &func_raw, mf, fn_map, table);
+        return convert_cat_stack(call, &func_raw, fn_map, table);
     }
 
     // ── torch.zeros / ones / rand ─────────────────────────────────────────
@@ -467,7 +487,7 @@ fn convert_call(
         let args: Vec<_> = call
             .args
             .iter()
-            .map(|a| convert_expr(a, mf, fn_map, table))
+            .map(|a| convert_expr(a, fn_map, table))
             .collect();
         return format!(
             "Tensor::<B, _>::{}([{}], device)",
@@ -481,11 +501,11 @@ fn convert_call(
         let args: Vec<_> = call
             .args
             .iter()
-            .map(|a| convert_expr(a, mf, fn_map, table))
+            .map(|a| convert_expr(a, fn_map, table))
             .collect();
         let kw_dim = call.keywords.iter().find_map(|k| {
             if k.arg.as_deref() == Some("dim") {
-                Some(convert_expr(&k.value, mf, fn_map, table))
+                Some(convert_expr(&k.value, fn_map, table))
             } else {
                 None
             }
@@ -498,19 +518,19 @@ fn convert_call(
 
     // ── method call on a variable ─────────────────────────────────────────
     if let Expr::Attribute(attr) = call.func.as_ref() {
-        let receiver = convert_expr(&attr.value, mf, fn_map, table);
+        let receiver = convert_expr(&attr.value, fn_map, table);
         let method = attr.attr.as_str();
         let args: Vec<_> = call
             .args
             .iter()
-            .map(|a| convert_expr(a, mf, fn_map, table))
+            .map(|a| convert_expr(a, fn_map, table))
             .collect();
         let kwargs: Vec<_> = call
             .keywords
             .iter()
             .filter_map(|k| {
                 let name = k.arg.as_ref()?.as_str().to_string();
-                Some((name, convert_expr(&k.value, mf, fn_map, table)))
+                Some((name, convert_expr(&k.value, fn_map, table)))
             })
             .collect();
 
@@ -518,11 +538,8 @@ fn convert_call(
         if let Expr::Name(n) = attr.value.as_ref() {
             if n.id.as_str() == "self" {
                 let field_name = attr.attr.as_str();
-                if let Some(li) = mf.get(field_name) {
-                    if li.is_module {
-                        return format!("self.{}.forward({})", field_name, args.join(", "));
-                    }
-                }
+
+                return format!("self.{}.forward({})", field_name, args.join(", "));
             }
         }
 
@@ -530,11 +547,11 @@ fn convert_call(
     }
 
     // ── fallback ──────────────────────────────────────────────────────────
-    let func_burn = convert_expr(&call.func, mf, fn_map, table);
+    let func_burn = convert_expr(&call.func, fn_map, table);
     let args: Vec<_> = call
         .args
         .iter()
-        .map(|a| convert_expr(a, mf, fn_map, table))
+        .map(|a| convert_expr(a, fn_map, table))
         .collect();
     format!("{}({})", func_burn, args.join(", "))
 }
@@ -657,24 +674,23 @@ fn convert_method_call(
 fn convert_cat_stack(
     call: &ExprCall,
     func_raw: &str,
-    mf: &HashMap<String, &LayerInfo>,
     fn_map: &HashMap<&str, &str>,
     table: &HashMap<&str, LayerInfo>,
 ) -> String {
     let tensors = if let Some(first) = call.args.first() {
-        convert_expr(first, mf, fn_map, table)
+        convert_expr(first, fn_map, table)
     } else {
         String::from("/* tensors */")
     };
     let dim = call
         .args
         .get(1)
-        .map(|a| convert_expr(a, mf, fn_map, table))
+        .map(|a| convert_expr(a, fn_map, table))
         .or_else(|| {
             call.keywords
                 .iter()
                 .find(|k| k.arg.as_deref() == Some("dim"))
-                .map(|k| convert_expr(&k.value, mf, fn_map, table))
+                .map(|k| convert_expr(&k.value, fn_map, table))
         })
         .unwrap_or_else(|| "0".to_string());
 
@@ -785,7 +801,16 @@ fn stmt_to_raw(stmt: &Stmt) -> String {
     match stmt {
         Stmt::Assign(a) => {
             let targets: Vec<_> = a.targets.iter().map(expr_to_raw).collect();
-            format!("{} = {}", targets.join(", "), expr_to_raw(&a.value))
+            format!("let {} = {}", targets.join(", "), expr_to_raw(&a.value))
+        }
+        Stmt::AnnAssign(assign) => {
+            let target = expr_to_raw(&assign.target);
+            let value = assign
+                .value
+                .as_ref()
+                .map(|v| expr_to_raw(v))
+                .unwrap_or_default();
+            format!("let {} = {}", target, value)
         }
         Stmt::Return(r) => {
             format!(

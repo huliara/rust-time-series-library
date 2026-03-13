@@ -1,7 +1,8 @@
 mod ast_visitor;
+mod build_config_str;
+mod build_forward_str;
 mod codegen;
 mod layer_map;
-
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::{
@@ -46,11 +47,7 @@ fn main() -> Result<()> {
     }
 
     // ── 出力 ─────────────────────────────────────────────────────────────
-    let output_text = if cli.dump {
-        dump_models(&models)
-    } else {
-        codegen::generate(&models)
-    };
+    let output_text = models;
 
     match &cli.output {
         Some(path) => {
