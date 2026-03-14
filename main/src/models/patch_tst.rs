@@ -2,6 +2,7 @@ use super::traits::Forecast;
 use crate::args::time_lengths::TimeLengths;
 use crate::args::{activation::ActivationArg, exp::TaskName};
 
+use crate::layers::flatten_head::{FlattenHead, FlattenHeadConfig};
 use crate::layers::{
     embed::patch_embedding::PatchEmbedding,
     embed::patch_embedding::PatchEmbeddingConfig,
@@ -132,41 +133,6 @@ impl PatchTSTConfig {
     }
 }
 
-#[derive(Config, Debug)]
-pub struct FlattenHeadConfig {
-    pub nf: usize,
-    pub target_window: usize,
-    pub head_dropout: f64,
-    #[config(
-        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
-    )]
-    pub initializer: Initializer,
-}
-impl FlattenHeadConfig {
-    pub fn init<B: Backend>(&self, device: &B::Device) -> FlattenHead<B> {
-        let linear = LinearConfig::new(self.nf, self.target_window)
-            .with_initializer(self.initializer.clone())
-            .init(device);
-        let dropout = DropoutConfig::new(self.head_dropout).init();
-
-        FlattenHead { linear, dropout }
-    }
-}
-
-#[derive(Module, Debug)]
-pub struct FlattenHead<B: Backend> {
-    linear: Linear<B>,
-    dropout: Dropout,
-}
-
-impl<B: Backend> FlattenHead<B> {
-    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 3> {
-        let x_flat = x.flatten(-2, -1); // [bs, nvars, d_model * patch_num]
-        let x_out = self.linear.forward(x_flat);
-        self.dropout.forward(x_out)
-    }
-}
-
 #[derive(Module, Debug)]
 pub struct PatchTST<B: Backend> {
     patch_embedding: PatchEmbedding<B>,
@@ -245,7 +211,7 @@ mod tests {
             e_layers: 2,
             n_heads: 8,
             d_ff: 2048,
-            dropout: 0.1,
+            dropout: 0.,
             activation: ActivationArg::Gelu,
         };
 
