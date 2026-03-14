@@ -33,6 +33,19 @@ fn get_model_args_string(model_config: &ModelConfig) -> String {
                 args.enc_in, args.individual, args.moving_avg,
             )
         }
+        ModelConfig::TimeXer(args) => {
+            format!(
+                "dm{}nh{}el{}df{}pt{}ei{}do{}ac{}",
+                args.d_model,
+                args.n_heads,
+                args.e_layers,
+                args.d_ff,
+                args.patch_len,
+                args.enc_in,
+                args.dropout,
+                args.activation,
+            )
+        }
     }
 }
 

@@ -10,6 +10,7 @@ use crate::{
     models::{
         dlinear::{DLinear, DLinearConfig},
         patch_tst::{PatchTST, PatchTSTConfig},
+        time_xer::{TimeXer, TimeXerConfig},
         traits::Forecast,
     },
 };
@@ -18,6 +19,7 @@ use burn::{prelude::*, tensor::backend::AutodiffBackend};
 enum Model<B: Backend> {
     PatchTST(PatchTST<B>),
     DLinear(DLinear<B>),
+    TimeXer(TimeXer<B>),
 }
 
 #[derive(Module, Debug)]
@@ -38,6 +40,11 @@ impl<B: Backend> ForecastModel<B> {
                 lengths,
                 device,
             )),
+            ModelConfig::TimeXer(args) => Model::TimeXer(TimeXerConfig::new(args).init(
+                TaskName::LongTermForecast,
+                lengths,
+                device,
+            )),
         };
         ForecastModel { model }
     }
@@ -54,6 +61,7 @@ impl<B: Backend> Forecast<B> for ForecastModel<B> {
         match &self.model {
             Model::PatchTST(model) => model.forecast(x, x_mark, dec_input, y_mark),
             Model::DLinear(model) => model.forecast(x, x_mark, dec_input, y_mark),
+            Model::TimeXer(model) => model.forecast(x, x_mark, dec_input, y_mark),
         }
     }
 }
