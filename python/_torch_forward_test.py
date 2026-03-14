@@ -294,12 +294,22 @@ def _torch_forward_test(name, args):
                 nn.init.constant_(param, 0.00)
             elif "bias" in name:
                 nn.init.constant_(param, 0.1)
-    else:
+    elif name == "TimeXer":
         for name, param in module.named_parameters():
             if "weight" in name:
                 nn.init.constant_(param, 0.1)
             elif "bias" in name:
                 nn.init.constant_(param, 0.0)
+            elif "glb_token" in name:
+                nn.init.constant_(param, 0.1)
+    else:
+        for name, param in module.named_parameters():
+            print("param name:", name)
+            if "weight" in name:
+                nn.init.constant_(param, 0.1)
+            elif "bias" in name:
+                nn.init.constant_(param, 0.0)
+
     _, data_loader = data_provider(args, flag="test")
     all_outputs = []
     with torch.no_grad():
