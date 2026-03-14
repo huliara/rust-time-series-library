@@ -12,8 +12,7 @@ pub fn build_fn_str(
     } else {
         forward_args
             .iter()
-            .enumerate()
-            .map(|(i, arg)| {
+            .map(|arg| {
                 // 推測: 最初の引数は Tensor<B, 2>、追加は任意
                 format!("{}: Tensor<B, 3>", arg)
             })

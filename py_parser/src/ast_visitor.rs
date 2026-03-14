@@ -236,7 +236,7 @@ fn build_init_expr(info: &LayerInfo, layer_key: &str, call: &ExprCall) -> String
         }
         "Dropout" | "AlphaDropout" => {
             // p=0.5 -> first arg or keyword
-            let p = if !args.is_empty() {
+            if !args.is_empty() {
                 args[0].clone()
             } else {
                 call.keywords
@@ -244,8 +244,7 @@ fn build_init_expr(info: &LayerInfo, layer_key: &str, call: &ExprCall) -> String
                     .find(|k| k.arg.as_deref() == Some("p"))
                     .map(|k| expr_to_burn(&k.value))
                     .unwrap_or_else(|| "0.5".to_string())
-            };
-            p
+            }
         }
         "BatchNorm1d" | "BatchNorm2d" => args.first().cloned().unwrap_or_default(),
         "LayerNorm" => {
@@ -293,7 +292,7 @@ fn build_init_expr(info: &LayerInfo, layer_key: &str, call: &ExprCall) -> String
             }
         }
         "LeakyReLU" => {
-            let neg_slope = if !args.is_empty() {
+            if !args.is_empty() {
                 args[0].clone()
             } else {
                 call.keywords
@@ -301,8 +300,7 @@ fn build_init_expr(info: &LayerInfo, layer_key: &str, call: &ExprCall) -> String
                     .find(|k| k.arg.as_deref() == Some("negative_slope"))
                     .map(|k| expr_to_burn(&k.value))
                     .unwrap_or_else(|| "0.01".to_string())
-            };
-            neg_slope
+            }
         }
         _ => args.join(", "),
     };
