@@ -22,15 +22,31 @@ pub struct AttentionLayerConfig {
 
 impl AttentionLayerConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> AttentionLayer<B> {
-        AttentionLayer::new(
-            self.inner_attention.init(),
-            self.d_model,
-            self.n_heads,
-            self.d_keys,
-            self.d_values,
-            self.initializer.clone(),
-            device,
-        )
+        let d_keys = self.d_keys.unwrap_or(self.d_model / self.n_heads);
+        let d_values = self.d_values.unwrap_or(self.d_model / self.n_heads);
+        let inner_attention = self.inner_attention.init();
+
+        let query_projection = LinearConfig::new(self.d_model, d_keys * self.n_heads)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+        let key_projection = LinearConfig::new(self.d_model, d_keys * self.n_heads)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+        let value_projection = LinearConfig::new(self.d_model, d_values * self.n_heads)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+        let out_projection = LinearConfig::new(d_values * self.n_heads, self.d_model)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+
+        AttentionLayer {
+            inner_attention,
+            query_projection,
+            key_projection,
+            value_projection,
+            out_projection,
+            n_heads: self.n_heads,
+        }
     }
 }
 
@@ -45,41 +61,6 @@ pub struct AttentionLayer<B: Backend> {
 }
 
 impl<B: Backend> AttentionLayer<B> {
-    pub fn new(
-        inner_attention: FullAttention,
-        d_model: usize,
-        n_heads: usize,
-        d_keys: Option<usize>,
-        d_values: Option<usize>,
-        initializer: Initializer,
-        device: &B::Device,
-    ) -> Self {
-        let d_keys = d_keys.unwrap_or(d_model / n_heads);
-        let d_values = d_values.unwrap_or(d_model / n_heads);
-
-        let query_projection = LinearConfig::new(d_model, d_keys * n_heads)
-            .with_initializer(initializer.clone())
-            .init(device);
-        let key_projection = LinearConfig::new(d_model, d_keys * n_heads)
-            .with_initializer(initializer.clone())
-            .init(device);
-        let value_projection = LinearConfig::new(d_model, d_values * n_heads)
-            .with_initializer(initializer.clone())
-            .init(device);
-        let out_projection = LinearConfig::new(d_values * n_heads, d_model)
-            .with_initializer(initializer)
-            .init(device);
-
-        Self {
-            inner_attention,
-            query_projection,
-            key_projection,
-            value_projection,
-            out_projection,
-            n_heads,
-        }
-    }
-
     pub fn forward(
         &self,
         queries: Tensor<B, 3>,
@@ -92,23 +73,19 @@ impl<B: Backend> AttentionLayer<B> {
         let h = self.n_heads;
 
         let queries = self.query_projection.forward(queries);
-        let [_, _, d_q_proj] = queries.dims();
-        let queries = queries.reshape([b, l, h, d_q_proj / h]);
+        let queries = queries.reshape([b as isize, l as isize, h as isize, -1isize]);
 
         let keys = self.key_projection.forward(keys);
-        let [_, _, d_k_proj] = keys.dims();
-        let keys = keys.reshape([b, s, h, d_k_proj / h]);
+        let keys = keys.reshape([b as isize, s as isize, h as isize, -1isize]);
 
         let values = self.value_projection.forward(values);
-        let [_, _, d_v_proj] = values.dims();
-        let values = values.reshape([b, s, h, d_v_proj / h]);
+        let values = values.reshape([b as isize, s as isize, h as isize, -1isize]);
 
         let (out, attn) = self
             .inner_attention
             .forward(queries, keys, values, attn_mask);
 
-        let [_, _, _, d_v] = out.dims();
-        let out = out.reshape([b, l, h * d_v]);
+        let out = out.reshape([b as isize, l as isize, -1isize]);
         let out = self.out_projection.forward(out);
 
         (out, attn)

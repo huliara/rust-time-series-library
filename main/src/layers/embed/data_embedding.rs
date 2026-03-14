@@ -126,8 +126,6 @@ pub struct DataEmbeddingInverted<B: Backend> {
 pub struct DataEmbeddingInvertedConfig {
     pub c_in: usize,
     pub d_model: usize,
-    pub embed_type: String,
-    pub freq: String,
     pub dropout: f64,
     #[config(
         default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
@@ -137,7 +135,6 @@ pub struct DataEmbeddingInvertedConfig {
 
 impl DataEmbeddingInvertedConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> DataEmbeddingInverted<B> {
-        let _ = (&self.embed_type, &self.freq);
         let value_embedding = LinearConfig::new(self.c_in, self.d_model)
             .with_initializer(self.initializer.clone())
             .init(device);
@@ -156,8 +153,7 @@ impl<B: Backend> DataEmbeddingInverted<B> {
 
         let inp = if let Some(mark) = x_mark {
             // mark: [Batch, Seq, TimeFeatures]
-            let mark = mark.permute([0, 2, 1]); // [Batch, TimeFeatures, Seq]
-            Tensor::cat(vec![x, mark], 1) // [Batch, Variate+TimeFeatures, Seq]
+            Tensor::cat(vec![x, mark.permute([0, 2, 1])], 1) // [Batch, Variate+TimeFeatures, Seq]
         } else {
             x
         };

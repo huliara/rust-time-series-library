@@ -161,8 +161,8 @@ impl<B: Backend> EncoderLayer<B> {
             .forward(x.clone(), x.clone(), x.clone(), x_mask);
         let x = self.norm1.forward(x + self.dropout.forward(new_x));
 
-        let [bxn, seq, _] = x.dims();
-        let x_glb_ori = x.clone().slice([0..bxn, (seq - 1)..seq, 0..d]);
+        let [bxn, seq, dxn] = x.dims();
+        let x_glb_ori = x.clone().slice([0..bxn, (seq - 1)..seq, 0..dxn]);
         let x_glb = x_glb_ori.clone().reshape([b as isize, -1isize, d as isize]);
         let x_glb_attn = self.dropout.forward(
             self.cross_attention
@@ -257,14 +257,9 @@ impl TimeXerConfig {
         .with_initializer(self.initializer.clone())
         .init(device);
 
-        let ex_embedding = DataEmbeddingInvertedConfig::new(
-            seq_len,
-            self.args.d_model,
-            self.args.embed.clone(),
-            self.args.freq.clone(),
-            self.args.dropout,
-        )
-        .init(device);
+        let ex_embedding =
+            DataEmbeddingInvertedConfig::new(seq_len, self.args.d_model, self.args.dropout)
+                .init(device);
 
         let attention_cfg = AttentionLayerConfig {
             inner_attention: FullAttentionConfig {
@@ -335,11 +330,11 @@ impl<B: Backend> TimeXer<B> {
     fn run_forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
         let means = x_enc.clone().mean_dim(1);
         let centered = x_enc.clone().sub(means.clone());
-        let var = centered.clone().mul(centered).mean_dim(1);
+        let var = centered.clone().var(1);
         let stdev = (var + 1e-5).sqrt();
 
         let x_enc = if self.use_norm {
-            x_enc.clone().sub(means.clone()).div(stdev.clone())
+            x_enc.sub(means.clone()).div(stdev.clone())
         } else {
             x_enc
         };
@@ -366,8 +361,12 @@ impl<B: Backend> TimeXer<B> {
             return dec_out;
         }
 
-        let stdev_last = stdev.slice([0..b, 0..1, (n - 1)..n]);
-        let means_last = means.slice([0..b, 0..1, (n - 1)..n]);
+        let stdev_last = stdev
+            .slice([0..b, 0..1, (n - 1)..n])
+            .repeat_dim(1, self.pred_len);
+        let means_last = means
+            .slice([0..b, 0..1, (n - 1)..n])
+            .repeat_dim(1, self.pred_len);
         dec_out.mul(stdev_last).add(means_last)
     }
 }
@@ -408,7 +407,7 @@ mod tests {
             label_len: 48,
         };
 
-        let initializer = Initializer::Constant { value: (0.1) };
+        let initializer = Initializer::Constant { value: (0.01) };
 
         let onedim_args = TimeXerArgs {
             d_model: 512,
@@ -446,7 +445,7 @@ mod tests {
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
 
-        assert_module_forecast::<B, TimeXer<B>>(Dim::Multidim, multidim_model);
         assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
+        assert_module_forecast::<B, TimeXer<B>>(Dim::Multidim, multidim_model);
     }
 }
