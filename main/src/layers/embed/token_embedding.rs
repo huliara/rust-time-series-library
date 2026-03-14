@@ -1,7 +1,10 @@
 use burn::{
+    config::Config,
     module::Module,
-    nn::conv::{Conv1d, Conv1dConfig},
-    nn::PaddingConfig1d,
+    nn::{
+        conv::{Conv1d, Conv1dConfig},
+        Initializer, PaddingConfig1d,
+    },
     tensor::{backend::Backend, Tensor},
 };
 
@@ -10,16 +13,27 @@ pub struct TokenEmbedding<B: Backend> {
     conv: Conv1d<B>,
 }
 
-impl<B: Backend> TokenEmbedding<B> {
-    pub fn new(c_in: usize, d_model: usize, device: &B::Device) -> Self {
-        let conv = Conv1dConfig::new(c_in, d_model, 3)
+#[derive(Config, Debug)]
+pub struct TokenEmbeddingConfig {
+    pub c_in: usize,
+    pub d_model: usize,
+    #[config(default = "Initializer::KaimingNormal{gain:1.0, fan_out_only:false}")]
+    pub initializer: Initializer,
+}
+
+impl TokenEmbeddingConfig {
+    pub fn init<B: Backend>(&self, device: &B::Device) -> TokenEmbedding<B> {
+        let conv = Conv1dConfig::new(self.c_in, self.d_model, 3)
             .with_padding(PaddingConfig1d::Explicit(0)) // We do manual circular padding
             .with_bias(false)
+            .with_initializer(self.initializer.clone())
             .init(device);
 
-        Self { conv }
+        TokenEmbedding { conv }
     }
+}
 
+impl<B: Backend> TokenEmbedding<B> {
     pub fn forward(&self, x: Tensor<B, 3>) -> Tensor<B, 3> {
         // x: [batch, seq_len, c_in]
         let x = x.permute([0, 2, 1]); // [batch, c_in, seq_len]

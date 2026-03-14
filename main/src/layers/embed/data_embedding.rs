@@ -3,13 +3,14 @@ use crate::{
     layers::embed::{
         positional_embedding::{PositionalEmbedding, PositionalEmbeddingConfig},
         temporal_embedding::TemporalEmbedding,
-        time_feature_embedding::TimeFeatureEmbedding,
-        token_embedding::TokenEmbedding,
+        time_feature_embedding::{TimeFeatureEmbedding, TimeFeatureEmbeddingConfig},
+        token_embedding::{TokenEmbedding, TokenEmbeddingConfig},
     },
 };
 use burn::{
+    config::Config,
     module::Module,
-    nn::{Dropout, DropoutConfig, Linear, LinearConfig},
+    nn::{Dropout, DropoutConfig, Initializer, Linear, LinearConfig},
     tensor::{backend::Backend, Tensor},
 };
 
@@ -36,6 +37,56 @@ pub struct DataEmbedding<B: Backend> {
     dropout: Dropout,
 }
 
+#[derive(Config, Debug)]
+pub struct DataEmbeddingConfig {
+    pub c_in: usize,
+    pub d_model: usize,
+    pub embed_type: TimeEmbed,
+    pub freq: String,
+    pub dropout: f64,
+    #[config(
+        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
+    )]
+    pub initializer: Initializer,
+}
+
+impl DataEmbeddingConfig {
+    pub fn init<B: Backend>(&self, device: &B::Device) -> DataEmbedding<B> {
+        let value_embedding = TokenEmbeddingConfig::new(self.c_in, self.d_model)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+        let position_embedding = PositionalEmbeddingConfig::new(self.d_model, 5000).init(device);
+
+        let temporal_embedding = if self.embed_type != TimeEmbed::TimeF {
+            TemporalEmbed::Temporal(TemporalEmbedding::new(
+                self.d_model,
+                &self.embed_type,
+                &self.freq,
+                device,
+            ))
+        } else {
+            TemporalEmbed::TimeFeature(
+                TimeFeatureEmbeddingConfig::new(
+                    self.d_model,
+                    self.embed_type.clone(),
+                    self.freq.clone(),
+                )
+                .with_initializer(self.initializer.clone())
+                .init(device),
+            )
+        };
+
+        let dropout = DropoutConfig::new(self.dropout).init();
+
+        DataEmbedding {
+            value_embedding,
+            position_embedding,
+            temporal_embedding,
+            dropout,
+        }
+    }
+}
+
 impl<B: Backend> DataEmbedding<B> {
     pub fn new(
         c_in: usize,
@@ -45,28 +96,7 @@ impl<B: Backend> DataEmbedding<B> {
         dropout: f64,
         device: &B::Device,
     ) -> Self {
-        let value_embedding = TokenEmbedding::new(c_in, d_model, device);
-        let position_embedding = PositionalEmbeddingConfig::new(d_model, 5000).init(device);
-
-        let temporal_embedding = if embed_type != TimeEmbed::TimeF {
-            TemporalEmbed::Temporal(TemporalEmbedding::new(d_model, &embed_type, &freq, device))
-        } else {
-            TemporalEmbed::TimeFeature(TimeFeatureEmbedding::new(
-                d_model,
-                &embed_type,
-                &freq,
-                device,
-            ))
-        };
-
-        let dropout = DropoutConfig::new(dropout).init();
-
-        Self {
-            value_embedding,
-            position_embedding,
-            temporal_embedding,
-            dropout,
-        }
+        DataEmbeddingConfig::new(c_in, d_model, embed_type, freq, dropout).init(device)
     }
 
     pub fn forward(&self, x: Tensor<B, 3>, x_mark: Option<Tensor<B, 3>>) -> Tensor<B, 3> {
@@ -92,24 +122,34 @@ pub struct DataEmbeddingInverted<B: Backend> {
     dropout: Dropout,
 }
 
-impl<B: Backend> DataEmbeddingInverted<B> {
-    pub fn new(
-        c_in: usize,
-        d_model: usize,
-        _embed_type: String,
-        _freq: String,
-        dropout: f64,
-        device: &B::Device,
-    ) -> Self {
-        // c_in here is expected to be seq_len (input size of Linear)
-        let value_embedding = LinearConfig::new(c_in, d_model).init(device);
-        let dropout = DropoutConfig::new(dropout).init();
-        Self {
+#[derive(Config, Debug)]
+pub struct DataEmbeddingInvertedConfig {
+    pub c_in: usize,
+    pub d_model: usize,
+    pub embed_type: String,
+    pub freq: String,
+    pub dropout: f64,
+    #[config(
+        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
+    )]
+    pub initializer: Initializer,
+}
+
+impl DataEmbeddingInvertedConfig {
+    pub fn init<B: Backend>(&self, device: &B::Device) -> DataEmbeddingInverted<B> {
+        let _ = (&self.embed_type, &self.freq);
+        let value_embedding = LinearConfig::new(self.c_in, self.d_model)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+        let dropout = DropoutConfig::new(self.dropout).init();
+        DataEmbeddingInverted {
             value_embedding,
             dropout,
         }
     }
+}
 
+impl<B: Backend> DataEmbeddingInverted<B> {
     pub fn forward(&self, x: Tensor<B, 3>, x_mark: Option<Tensor<B, 3>>) -> Tensor<B, 3> {
         // x: [Batch, Seq, Variate]
         let x = x.permute([0, 2, 1]); // [Batch, Variate, Seq]
@@ -135,38 +175,55 @@ pub struct DataEmbeddingWoPos<B: Backend> {
     dropout: Dropout,
 }
 
-impl<B: Backend> DataEmbeddingWoPos<B> {
-    pub fn new(
-        c_in: usize,
-        d_model: usize,
-        embed_type: TimeEmbed,
-        freq: String,
-        dropout: f64,
-        device: &B::Device,
-    ) -> Self {
-        let value_embedding = TokenEmbedding::new(c_in, d_model, device);
-        // let position_embedding = PositionalEmbedding::new(d_model, 5000, device);
+#[derive(Config, Debug)]
+pub struct DataEmbeddingWoPosConfig {
+    pub c_in: usize,
+    pub d_model: usize,
+    pub embed_type: TimeEmbed,
+    pub freq: String,
+    pub dropout: f64,
+    #[config(
+        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
+    )]
+    pub initializer: Initializer,
+}
 
-        let temporal_embedding = if embed_type != TimeEmbed::TimeF {
-            TemporalEmbed::Temporal(TemporalEmbedding::new(d_model, &embed_type, &freq, device))
-        } else {
-            TemporalEmbed::TimeFeature(TimeFeatureEmbedding::new(
-                d_model,
-                &embed_type,
-                &freq,
+impl DataEmbeddingWoPosConfig {
+    pub fn init<B: Backend>(&self, device: &B::Device) -> DataEmbeddingWoPos<B> {
+        let value_embedding = TokenEmbeddingConfig::new(self.c_in, self.d_model)
+            .with_initializer(self.initializer.clone())
+            .init(device);
+
+        let temporal_embedding = if self.embed_type != TimeEmbed::TimeF {
+            TemporalEmbed::Temporal(TemporalEmbedding::new(
+                self.d_model,
+                &self.embed_type,
+                &self.freq,
                 device,
             ))
+        } else {
+            TemporalEmbed::TimeFeature(
+                TimeFeatureEmbeddingConfig::new(
+                    self.d_model,
+                    self.embed_type.clone(),
+                    self.freq.clone(),
+                )
+                .with_initializer(self.initializer.clone())
+                .init(device),
+            )
         };
 
-        let dropout = DropoutConfig::new(dropout).init();
+        let dropout = DropoutConfig::new(self.dropout).init();
 
-        Self {
+        DataEmbeddingWoPos {
             value_embedding,
             temporal_embedding,
             dropout,
         }
     }
+}
 
+impl<B: Backend> DataEmbeddingWoPos<B> {
     pub fn forward(&self, x: Tensor<B, 3>, x_mark: Option<Tensor<B, 3>>) -> Tensor<B, 3> {
         let val = self.value_embedding.forward(x);
         let mut out = val;

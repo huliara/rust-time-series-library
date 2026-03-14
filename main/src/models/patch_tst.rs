@@ -14,7 +14,7 @@ use crate::layers::{
 use burn::{
     config::Config,
     module::Module,
-    nn::{BatchNorm, Dropout, DropoutConfig, Initializer, Linear, LinearConfig},
+    nn::{BatchNorm, Initializer, Linear, LinearConfig},
     tensor::{backend::Backend, Tensor},
 };
 use serde::{Deserialize, Serialize};
