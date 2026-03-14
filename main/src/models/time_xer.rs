@@ -77,11 +77,18 @@ impl EnEmbeddingConfig {
             .with_bias(false)
             .with_initializer(self.initializer.clone())
             .init(device);
-        let glb_token = Param::from_tensor(Tensor::random(
-            [1, self.n_vars, 1, self.d_model],
-            Distribution::Normal(0.0, 1.0),
-            device,
-        ));
+        let glb_token = match self.initializer {
+            Initializer::Constant { value } => Param::from_tensor(Tensor::full(
+                [1, self.n_vars, 1, self.d_model],
+                value,
+                device,
+            )),
+            _ => Param::from_tensor(Tensor::random(
+                [1, self.n_vars, 1, self.d_model],
+                Distribution::Normal(0.0, 1.0),
+                device,
+            )),
+        };
         let position_embedding = PositionalEmbeddingConfig::new(self.d_model, 5000).init(device);
         let dropout = DropoutConfig::new(self.dropout).init();
         EnEmbedding {
@@ -190,19 +197,17 @@ impl<B: Backend> EncoderLayer<B> {
 
         let [bxn, seq, _] = x.dims();
         let x_glb_ori = x.clone().slice([0..bxn, (seq - 1)..seq, 0..d]);
-        let x_glb = x_glb_ori.clone().reshape([b, -1, d]);
+        let x_glb = x_glb_ori.clone().reshape([b as isize, -1isize, d as isize]);
         let x_glb_attn = self.dropout.forward(
             self.cross_attention
                 .forward(x_glb, cross.clone(), cross, cross_mask)
                 .0,
         );
+        let x_glb_attn_dims = x_glb_attn.dims();
         let x_glb = self.norm2.forward(
             x_glb_ori
                 + x_glb_attn
-                    .reshape([
-                        x_glb_attn.dims()[0] * x_glb_attn.dims()[1],
-                        x_glb_attn.dims()[2],
-                    ])
+                    .reshape([x_glb_attn_dims[0] * x_glb_attn_dims[1], x_glb_attn_dims[2]])
                     .unsqueeze_dim(1),
         );
 
@@ -371,7 +376,7 @@ impl<B: Backend> TimeXer<B> {
             x_enc
         };
 
-        let [b, seq, n] = x_enc.dims();
+        let [b, _seq, n] = x_enc.dims();
         let en_x = x_enc.clone().permute([0, 2, 1]);
         let (en_embed, n_vars) = self.en_embedding.forward(en_x);
         let ex_embed = self.ex_embedding.forward(x_enc.clone(), Some(x_mark_enc));
@@ -473,7 +478,7 @@ mod tests {
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
 
-        assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
         assert_module_forecast::<B, TimeXer<B>>(Dim::Multidim, multidim_model);
+        assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
     }
 }

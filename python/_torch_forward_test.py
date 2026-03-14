@@ -297,9 +297,9 @@ def _torch_forward_test(name, args):
     else:
         for name, param in module.named_parameters():
             if "weight" in name:
-                nn.init.constant_(param, 0.01)
+                nn.init.constant_(param, 0.1)
             elif "bias" in name:
-                nn.init.constant_(param, 0.01)
+                nn.init.constant_(param, 0.0)
     _, data_loader = data_provider(args, flag="test")
     all_outputs = []
     with torch.no_grad():
@@ -332,5 +332,6 @@ def _torch_forward_test(name, args):
 
 if __name__ == "__main__":
     args = Args_mock()
-    output = _torch_forward_test("PatchTST", args)
+    args.features = "S"
+    output = _torch_forward_test("TimeXer", args)
     print("output shape:", output.shape)
