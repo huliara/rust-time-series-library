@@ -81,6 +81,22 @@ fn extract_config_arg(value: Expr) -> Option<String> {
     }
 }
 
+fn extract_value(value: Expr, table: &HashMap<&str, LayerInfo>) -> (String, Option<String>) {
+    let value_str: std::string::String;
+
+    if let Some(init_arg) = extract_config_arg(value.clone()) {
+        value_str = format!("self.model_args.{}", init_arg);
+        return (value_str, Some(init_arg));
+    } else if let Some((layer_key, call)) = extract_nn_call(&value)
+        && let Some(info) = table.get(layer_key.as_str())
+    {
+        value_str = build_init_expr(info, layer_key.as_str(), call);
+    } else {
+        value_str = convert_expr(&value, &fn_table(), table);
+    };
+    (value_str, None)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // __init__ extraction
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +108,7 @@ fn extract_init(
 ) -> String {
     let mut init_args: Vec<String> = Vec::new();
     let mut model_fields: Vec<String> = Vec::new();
-    let mut init_body: Vec<String> = Vec::new();
+    let mut body: Vec<String> = Vec::new();
 
     for arg in func.args.args.iter().skip(1) {
         if &arg.def.arg != "device" && &arg.def.arg != "configs" {
@@ -106,33 +122,30 @@ fn extract_init(
                 let target = &assign.target;
                 let value: Expr = *assign.value.clone().unwrap();
                 let target_name: std::string::String;
-                let value_str: std::string::String;
-
-                if let Some(init_arg) = extract_config_arg(value.clone()) {
-                    init_args.push(init_arg.clone());
-                    value_str = format!("self.model_args.{}", init_arg);
-                } else if let Some((layer_key, call)) = extract_nn_call(&value)
-                    && let Some(info) = table.get(layer_key.as_str())
-                {
-                    value_str = build_init_expr(info, layer_key.as_str(), call);
-                } else {
-                    value_str = convert_expr(&value, &fn_table(), table);
-                };
+                let (value_str, additional_init_args) = extract_value(value, table);
+                if let Some(arg) = additional_init_args {
+                    init_args.push(arg);
+                }
 
                 if let Some(field_name) = self_attr_name(target) {
                     model_fields.push(field_name.clone());
                     target_name = field_name.clone();
-                    init_body.push(format!("let self.{} = {};", target_name, value_str));
+                    body.push(format!("let self.{} = {};", target_name, value_str));
                 } else {
                     target_name = expr_to_raw(target);
-                    init_body.push(format!("let {} = {};", target_name, value_str));
+                    body.push(format!("let {} = {};", target_name, value_str));
                 };
             }
             Stmt::Assign(assign) => {
+                let value: Expr = *assign.value.clone();
+                let (value_str, additional_init_args) = extract_value(value, table);
+                if let Some(arg) = additional_init_args {
+                    init_args.push(arg);
+                }
+
                 if let Some(target_name) = self_attr_name(&assign.targets[0]) {
-                    let value_str = convert_expr(&assign.value, &fn_table(), table);
                     model_fields.push(target_name.clone());
-                    init_body.push(format!("let {} = {};", target_name, value_str));
+                    body.push(format!("let {} = {};", target_name, value_str));
                 } else {
                     let target = if assign.targets.len() == 1 {
                         expr_to_raw(&assign.targets[0])
@@ -144,19 +157,18 @@ fn extract_init(
                             .collect::<Vec<_>>()
                             .join(", ")
                     };
-                    let value_str = convert_expr(&assign.value, &fn_table(), table);
-                    init_body.push(format!("let {} = {};", target, value_str));
+                    body.push(format!("let {} = {};", target, value_str));
                 }
             }
             _ => {
-                init_body.push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
+                body.push(format!("/* TODO: {} */", stmt_to_raw(stmt)));
             }
         }
     }
     if class_name == "Model" {
-        build_main_model_config(class_name, init_args, model_fields, init_body)
+        build_main_model_config(class_name, init_args, model_fields, body)
     } else {
-        build_sub_model_config(class_name, init_args, model_fields, init_body)
+        build_sub_model_config(class_name, init_args, model_fields, body)
     }
 }
 
