@@ -83,6 +83,7 @@ impl PatchTSTConfig {
                 n_heads: self.model_args.n_heads,
                 d_keys: None,
                 d_values: None,
+                initializer: self.initializer.clone(),
             },
             d_model: self.model_args.d_model,
             d_ff: Some(self.model_args.d_ff),

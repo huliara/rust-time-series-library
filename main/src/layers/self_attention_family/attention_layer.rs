@@ -3,7 +3,7 @@ use crate::layers::self_attention_family::full_attention::FullAttentionConfig;
 use super::full_attention::FullAttention;
 use burn::config::Config;
 use burn::module::Module;
-use burn::nn::{Linear, LinearConfig};
+use burn::nn::{Initializer, Linear, LinearConfig};
 use burn::prelude::Bool;
 use burn::tensor::{backend::Backend, Tensor};
 
@@ -14,6 +14,10 @@ pub struct AttentionLayerConfig {
     pub n_heads: usize,
     pub d_keys: Option<usize>,
     pub d_values: Option<usize>,
+    #[config(
+        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
+    )]
+    pub initializer: Initializer,
 }
 
 impl AttentionLayerConfig {
@@ -24,6 +28,7 @@ impl AttentionLayerConfig {
             self.n_heads,
             self.d_keys,
             self.d_values,
+            self.initializer.clone(),
             device,
         )
     }
@@ -46,15 +51,24 @@ impl<B: Backend> AttentionLayer<B> {
         n_heads: usize,
         d_keys: Option<usize>,
         d_values: Option<usize>,
+        initializer: Initializer,
         device: &B::Device,
     ) -> Self {
         let d_keys = d_keys.unwrap_or(d_model / n_heads);
         let d_values = d_values.unwrap_or(d_model / n_heads);
 
-        let query_projection = LinearConfig::new(d_model, d_keys * n_heads).init(device);
-        let key_projection = LinearConfig::new(d_model, d_keys * n_heads).init(device);
-        let value_projection = LinearConfig::new(d_model, d_values * n_heads).init(device);
-        let out_projection = LinearConfig::new(d_values * n_heads, d_model).init(device);
+        let query_projection = LinearConfig::new(d_model, d_keys * n_heads)
+            .with_initializer(initializer.clone())
+            .init(device);
+        let key_projection = LinearConfig::new(d_model, d_keys * n_heads)
+            .with_initializer(initializer.clone())
+            .init(device);
+        let value_projection = LinearConfig::new(d_model, d_values * n_heads)
+            .with_initializer(initializer.clone())
+            .init(device);
+        let out_projection = LinearConfig::new(d_values * n_heads, d_model)
+            .with_initializer(initializer)
+            .init(device);
 
         Self {
             inner_attention,
@@ -126,6 +140,10 @@ mod tests {
             n_heads: 4,
             d_keys: None,
             d_values: None,
+            initializer: Initializer::Uniform {
+                min: -0.1,
+                max: 0.1,
+            },
         };
         let attention_layer = config.init::<B>(&device);
 

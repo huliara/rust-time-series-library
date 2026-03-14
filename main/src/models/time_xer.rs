@@ -4,7 +4,7 @@ use crate::args::{activation::ActivationArg, exp::TaskName, time_lengths::TimeLe
 use crate::layers::flatten_head::{FlattenHead, FlattenHeadConfig};
 use crate::layers::{
     embed::{
-        data_embedding::DataEmbeddingInverted,
+        data_embedding::{DataEmbeddingInverted, DataEmbeddingInvertedConfig},
         positional_embedding::{PositionalEmbedding, PositionalEmbeddingConfig},
     },
     self_attention_family::{
@@ -257,14 +257,14 @@ impl TimeXerConfig {
         .with_initializer(self.initializer.clone())
         .init(device);
 
-        let ex_embedding = DataEmbeddingInverted::new(
+        let ex_embedding = DataEmbeddingInvertedConfig::new(
             seq_len,
             self.args.d_model,
             self.args.embed.clone(),
             self.args.freq.clone(),
             self.args.dropout,
-            device,
-        );
+        )
+        .init(device);
 
         let attention_cfg = AttentionLayerConfig {
             inner_attention: FullAttentionConfig {
@@ -277,6 +277,7 @@ impl TimeXerConfig {
             n_heads: self.args.n_heads,
             d_keys: None,
             d_values: None,
+            initializer: self.initializer.clone(),
         };
 
         let layers = (0..self.args.e_layers)
@@ -333,7 +334,8 @@ pub struct TimeXer<B: Backend> {
 impl<B: Backend> TimeXer<B> {
     fn run_forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
         let means = x_enc.clone().mean_dim(1);
-        let var = x_enc.clone().sub(means.clone()).var(1);
+        let centered = x_enc.clone().sub(means.clone());
+        let var = centered.clone().mul(centered).mean_dim(1);
         let stdev = (var + 1e-5).sqrt();
 
         let x_enc = if self.use_norm {
