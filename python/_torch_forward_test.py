@@ -299,7 +299,7 @@ def _torch_forward_test(name, args):
             if "weight" in name:
                 nn.init.constant_(param, 0.01)
             elif "bias" in name:
-                nn.init.constant_(param, 0.0)
+                nn.init.constant_(param, 0.01)
             elif "glb_token" in name:
                 nn.init.constant_(param, 0.01)
     else:

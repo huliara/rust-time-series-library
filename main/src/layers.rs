@@ -9,6 +9,8 @@ pub mod transformer_enc_dec;
 use burn::prelude::Backend;
 use burn::tensor::Tensor;
 
+use crate::layers::self_attention_family::attention_layer::AttentionLayer;
+
 use self::embed::{data_embedding_inverted::DataEmbeddingInverted, en_embedding::EnEmbedding};
 
 #[derive(strum::Display)]
@@ -16,6 +18,7 @@ pub enum Layer<B: Backend> {
     EnEmbedding(EnEmbedding<B>),
     #[strum(serialize = "DataEmbedding_inverted")]
     DataEmbeddingInverted(DataEmbeddingInverted<B>),
+    AttentionLayer(AttentionLayer<B>),
 }
 
 impl<B: Backend> Layer<B> {
@@ -26,6 +29,10 @@ impl<B: Backend> Layer<B> {
                 tensor
             }
             Layer::DataEmbeddingInverted(layer) => layer.forward(x, Some(x_mark)),
+            Layer::AttentionLayer(layer) => {
+                let (tensor, _) = layer.forward(x.clone(), x.clone(), x, None);
+                tensor
+            }
         }
     }
 }

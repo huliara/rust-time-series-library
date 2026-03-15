@@ -470,7 +470,12 @@ def _init_simple_layer(name, args):
             output_attention=False,
         )
     elif name == "AttentionLayer":
-        return _build_attention_layer(args, mask_flag=False)
+        n_vars = 1 if args.features in ["S", "MS"] else args.enc_in
+        return AttentionLayer(
+            _build_full_attention(args, mask_flag=False),
+            n_vars,
+            1,
+        )
     elif name == "ReformerLayer":
         return ReformerLayer(
             _build_attention_layer(args, mask_flag=False),
@@ -678,6 +683,8 @@ def _torch_layer_forward_test(name, args):
             )
             if name == "EnEmbedding":
                 outputs, _ = module(batch_x.permute(0, 2, 1))
+            elif name == "AttentionLayer":
+                outputs, _ = module(batch_x, batch_x, batch_x, None)
             elif name in ["Crossformer_DecoderLayer", "Crossformer_Decoder"]:
                 outputs = module(dec_inp, batch_x, batch_y_mark, batch_x_mark)
             elif name in [

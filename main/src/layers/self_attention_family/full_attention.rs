@@ -83,10 +83,11 @@ mod tests {
     use super::*;
 
     use burn::tensor::Shape;
+
     use burn_ndarray::NdArray;
 
     #[test]
-    fn test_full_attention_forward() {
+    fn test_full_attention_rough() {
         type B = NdArray;
         let device = Default::default();
 

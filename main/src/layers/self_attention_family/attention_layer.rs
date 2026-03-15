@@ -96,11 +96,15 @@ impl<B: Backend> AttentionLayer<B> {
 mod tests {
     use super::*;
 
+    use crate::layers::{test::assert_layer_forward, Layer};
+    use crate::test_utils::dim::Dim;
+    use burn::backend::Wgpu;
+    use burn::nn::Initializer;
     use burn::tensor::Shape;
     use burn_ndarray::NdArray;
 
     #[test]
-    fn test_attention_layer_forward() {
+    fn test_attention_layer_rough() {
         type B = NdArray;
         let device = Default::default();
 
@@ -145,5 +149,46 @@ mod tests {
         } else {
             panic!("Expected attention output");
         }
+    }
+
+    #[test]
+    fn test_attention_layer_forward() {
+        type B = Wgpu;
+        let device = Default::default();
+
+        let initializer = Initializer::Constant { value: (0.01) };
+        let onedim_config = AttentionLayerConfig {
+            inner_attention: FullAttentionConfig {
+                mask_flag: false,
+                scale: None,
+                attention_dropout: 0.,
+                output_attention: false,
+            },
+            d_model: 1,
+            n_heads: 1,
+            d_keys: None,
+            d_values: None,
+            initializer: initializer.clone(),
+        };
+
+        let multidim_config = AttentionLayerConfig {
+            inner_attention: FullAttentionConfig {
+                mask_flag: false,
+                scale: None,
+                attention_dropout: 0.,
+                output_attention: false,
+            },
+            d_model: 7,
+            n_heads: 1,
+            d_keys: None,
+            d_values: None,
+            initializer,
+        };
+
+        let onedim_layer = onedim_config.init(&device);
+        let multidim_layer = multidim_config.init(&device);
+
+        assert_layer_forward::<B>(Dim::Onedim, Layer::AttentionLayer(onedim_layer));
+        assert_layer_forward::<B>(Dim::Multidim, Layer::AttentionLayer(multidim_layer));
     }
 }
