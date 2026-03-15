@@ -19,7 +19,7 @@ impl<B: Backend> Layer<B> {
     pub fn forward(&self, x: burn::tensor::Tensor<B, 3>) -> burn::tensor::Tensor<B, 3> {
         match self {
             Layer::EnEmbedding(layer) => {
-                let (tensor, _) = layer.forward(x);
+                let (tensor, _) = layer.forward(x.swap_dims(1, 2));
                 tensor
             }
         }

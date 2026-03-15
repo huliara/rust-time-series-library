@@ -100,6 +100,7 @@ from layers.Transformer_EncDec import (
     DecoderLayer as Transformer_DecoderLayer,
     Decoder as Transformer_Decoder,
 )
+from models.TimeXer import EnEmbedding as TimeXerEnEmbedding
 
 layer_dict = {
     "AutoCorrelation": AutoCorrelation,
@@ -154,6 +155,7 @@ layer_dict = {
     "Transformer_Decoder": Transformer_Decoder,
 }
 simple_layer_dict = {
+    "EnEmbedding": TimeXerEnEmbedding,
     "my_Layernorm": my_Layernorm,
     "moving_avg": moving_avg,
     "series_decomp": series_decomp,
@@ -185,7 +187,10 @@ simple_layer_dict = {
 
 
 def _init_simple_layer(name, args):
-    if name == "my_Layernorm":
+    if name == "EnEmbedding":
+        n_vars = 1 if args.features in ["S", "MS"] else args.enc_in
+        return TimeXerEnEmbedding(n_vars, args.d_model, args.patch_len, args.dropout)
+    elif name == "my_Layernorm":
         return my_Layernorm(args.d_model)
     elif name == "moving_avg":
         return moving_avg(args.moving_avg, 1)
@@ -277,12 +282,16 @@ def _torch_layer_forward_test(name, args):
     module.to(device)
     module.eval()
 
-    for name, param in module.named_parameters():
-        print("param name:", name)
-        if "weight" in name:
+    for param_name, param in module.named_parameters():
+        print("param name:", param_name)
+        if "weight" in param_name and module.__class__.__name__ == "EnEmbedding":
+            nn.init.constant_(param, 0.01)
+        elif "weight" in param_name:
             nn.init.constant_(param, 0.1)
-        elif "bias" in name:
+        elif "bias" in param_name:
             nn.init.constant_(param, 0.0)
+        elif "glb_token" in param_name:
+            nn.init.constant_(param, 0.01)
 
     _, data_loader = data_provider(args, flag="test")
     all_outputs = []
@@ -299,7 +308,9 @@ def _torch_layer_forward_test(name, args):
                 .float()
                 .to(device)
             )
-            if name in ["Crossformer_DecoderLayer", "Crossformer_Decoder"]:
+            if name == "EnEmbedding":
+                outputs, _ = module(batch_x.permute(0, 2, 1))
+            elif name in ["Crossformer_DecoderLayer", "Crossformer_Decoder"]:
                 outputs = module(dec_inp, batch_x, batch_y_mark, batch_x_mark)
             elif name in [
                 "DataEmbedding",
@@ -307,13 +318,12 @@ def _torch_layer_forward_test(name, args):
                 "DataEmbedding_wo_pos",
             ]:
                 outputs = module(batch_x, batch_x_mark)
-            elif name in ["EnEmbedding"]:
-                outputs, _ = module(batch_x)
             else:
                 outputs = module(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
-            f_dim = -1 if args.features == "MS" else 0
-            outputs = outputs[:, -args.pred_len :, f_dim:]
+            if outputs.dim() == 3 and outputs.size(1) >= args.pred_len:
+                f_dim = -1 if args.features == "MS" else 0
+                outputs = outputs[:, -args.pred_len :, f_dim:]
 
             all_outputs.append(outputs)
     all_outputs = torch.cat(all_outputs, dim=0)
