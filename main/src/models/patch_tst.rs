@@ -190,11 +190,12 @@ impl<B: Backend> Forecast<B> for PatchTST<B> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_util::{assert_module_forecast, Dim};
+    use super::super::test::assert_module_forecast;
     use crate::args::activation::ActivationArg;
     use crate::args::exp::TaskName;
     use crate::args::time_lengths::TimeLengths;
     use crate::models::patch_tst::{PatchTST, PatchTSTArgs, PatchTSTConfig};
+    use crate::test_utils::dim::Dim;
     use burn::backend::Wgpu;
     use burn::nn::Initializer;
 

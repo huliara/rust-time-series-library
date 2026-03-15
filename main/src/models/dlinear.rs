@@ -291,7 +291,8 @@ mod tests {
     use super::{DLinear, DLinearConfig};
     use crate::args::{exp::TaskName, time_lengths::TimeLengths};
     use crate::models::dlinear::DLinearArgs;
-    use crate::models::test_util::{assert_module_forecast, Dim};
+    use crate::models::test::assert_module_forecast;
+    use crate::test_utils::dim::Dim;
     use burn::backend::wgpu::Wgpu;
     use burn::nn::Initializer;
     #[test]

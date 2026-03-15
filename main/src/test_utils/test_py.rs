@@ -32,49 +32,44 @@ pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bo
 }
 
 pub fn execute_python_forward_multidim(model_name: &str) -> PyResult<Vec<f64>> {
-    Python::attach(|py: Python<'_>| {
-        let func = get_python_fnction(
-            py,
-            "_torch_forward_test".to_string(),
-            "torch_forward_test_multidim".to_string(),
-        );
-        // 5. Call the function with model_name
-        let result = func.call1((model_name,))?;
-
-        // 6. Convert numpy result to flat Vec<f32>
-        //    We expect the result to be a numpy array.
-        //    Flattening ensures we get a 1D sequence.
-        let flat_result = result.call_method0("flatten")?.call_method0("tolist")?;
-        let output: Vec<f64> = flat_result.extract()?;
-
-        Ok(output)
-    })
+    _execute_forward(
+        "_torch_forward_test",
+        "torch_forward_test_multidim",
+        model_name,
+    )
 }
 
 pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
-    Python::attach(|py: Python<'_>| {
-        let func = get_python_fnction(
-            py,
-            "_torch_forward_test".to_string(),
-            "torch_forward_test_onedim".to_string(),
-        );
-        // 5. Call the function with model_name
-        let result = func.call1((model_name,))?;
-
-        // 6. Convert numpy result to Vec<f32>
-        let flat_result = result.call_method0("flatten")?.call_method0("tolist")?;
-        let output: Vec<f64> = flat_result.extract()?;
-        Ok(output)
-    })
+    _execute_forward(
+        "_torch_forward_test",
+        "torch_forward_test_onedim",
+        model_name,
+    )
 }
 
-pub fn execute_python_simple_forward(model_name: &str) -> PyResult<Vec<f64>> {
+pub fn execute_python_layer_forward_multidim(model_name: &str) -> PyResult<Vec<f64>> {
+    _execute_forward(
+        "_torch_layer_forward_test",
+        "torch_forward_test_multidim",
+        model_name,
+    )
+}
+pub fn execute_python_layer_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
+    _execute_forward(
+        "_torch_layer_forward_test",
+        "torch_forward_test_onedim",
+        model_name,
+    )
+}
+
+pub fn _execute_forward(
+    module_name: &str,
+    func_name: &str,
+    model_name: &str,
+) -> PyResult<Vec<f64>> {
     Python::attach(|py: Python<'_>| {
-        let func = get_python_fnction(
-            py,
-            "_torch_forward_test".to_string(),
-            "torch_forward_test".to_string(),
-        );
+        let func: Bound<'_, PyAny> =
+            get_python_fnction(py, module_name.to_string(), func_name.to_string());
         // 5. Call the function with model_name
         let result = func.call1((model_name,))?;
 

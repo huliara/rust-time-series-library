@@ -1,4 +1,5 @@
 use burn::{tensor::backend::Backend, Tensor};
+
 pub trait Forecast<B: Backend> {
     fn forecast(
         &self,
