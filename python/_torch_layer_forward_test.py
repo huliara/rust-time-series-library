@@ -657,7 +657,7 @@ def _torch_layer_forward_test(name, args):
         elif "weight" in param_name:
             nn.init.constant_(param, 0.01)
         elif "bias" in param_name:
-            nn.init.constant_(param, 0.0)
+            nn.init.constant_(param, 0.01)
         elif "glb_token" in param_name:
             nn.init.constant_(param, 0.01)
 
