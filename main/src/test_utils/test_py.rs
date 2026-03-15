@@ -68,6 +68,24 @@ pub fn execute_python_forward_onedim(model_name: &str) -> PyResult<Vec<f64>> {
     })
 }
 
+pub fn execute_python_simple_forward(model_name: &str) -> PyResult<Vec<f64>> {
+    Python::attach(|py: Python<'_>| {
+        let func = get_python_fnction(
+            py,
+            "_torch_forward_test".to_string(),
+            "torch_forward_test".to_string(),
+        );
+        // 5. Call the function with model_name
+        let result = func.call1((model_name,))?;
+
+        // 6. Convert numpy result to flat Vec<f32>
+        let flat_result = result.call_method0("flatten")?.call_method0("tolist")?;
+        let output: Vec<f64> = flat_result.extract()?;
+
+        Ok(output)
+    })
+}
+
 pub fn execute_dataset_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
     Python::attach(|py| {
         let func = get_python_fnction(py, "_dataset_test".to_string(), "dataset_test".to_string()); // python/ は sys.path に追加済み

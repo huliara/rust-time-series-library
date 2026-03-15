@@ -303,7 +303,6 @@ impl TimeXerConfig {
                 task_name,
                 TaskName::LongTermForecast | TaskName::ShortTermForecast
             ),
-            is_multi_feature: self.args.enc_in > 1,
             pred_len,
             use_norm: self.args.use_norm,
             en_embedding,
@@ -317,7 +316,6 @@ impl TimeXerConfig {
 #[derive(Module, Debug)]
 pub struct TimeXer<B: Backend> {
     is_forecast_task: bool,
-    is_multi_feature: bool,
     pred_len: usize,
     use_norm: bool,
     en_embedding: EnEmbedding<B>,
@@ -327,7 +325,7 @@ pub struct TimeXer<B: Backend> {
 }
 
 impl<B: Backend> TimeXer<B> {
-    fn run_forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
+    fn forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
         let means = x_enc.clone().mean_dim(1);
         let centered = x_enc.clone().sub(means.clone());
         let var = centered.clone().var(1);
@@ -379,7 +377,7 @@ impl<B: Backend> Forecast<B> for TimeXer<B> {
         _y: Tensor<B, 3>,
         _y_mark: Tensor<B, 3>,
     ) -> Tensor<B, 3> {
-        let dec_out = self.run_forecast(x, x_mark);
+        let dec_out = self.forecast(x, x_mark);
 
         let [b, t, c] = dec_out.dims();
         let start = t - self.pred_len;

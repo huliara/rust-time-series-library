@@ -3,5 +3,5 @@ resolver="3"
 members=[
     "lib",
     "main",
-    "py_parser",
+    "burn_the_torch",
 ]
