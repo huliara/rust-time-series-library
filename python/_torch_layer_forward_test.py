@@ -153,8 +153,6 @@ layer_dict = {
     "Transformer_Encoder": Transformer_Encoder,
     "Transformer_DecoderLayer": Transformer_DecoderLayer,
     "Transformer_Decoder": Transformer_Decoder,
-}
-simple_layer_dict = {
     "EnEmbedding": TimeXerEnEmbedding,
     "my_Layernorm": my_Layernorm,
     "moving_avg": moving_avg,
@@ -186,10 +184,380 @@ simple_layer_dict = {
 }
 
 
+def _build_full_attention(args, mask_flag=False):
+    return FullAttention(
+        mask_flag=mask_flag,
+        factor=args.factor,
+        attention_dropout=args.dropout,
+        output_attention=False,
+    )
+
+
+def _build_attention_layer(args, mask_flag=False):
+    return AttentionLayer(
+        _build_full_attention(args, mask_flag=mask_flag),
+        args.d_model,
+        args.n_heads,
+    )
+
+
 def _init_simple_layer(name, args):
     if name == "EnEmbedding":
         n_vars = 1 if args.features in ["S", "MS"] else args.enc_in
         return TimeXerEnEmbedding(n_vars, args.d_model, args.patch_len, args.dropout)
+    elif name == "AutoCorrelation":
+        return AutoCorrelation(
+            mask_flag=False,
+            factor=args.factor,
+            attention_dropout=args.dropout,
+            output_attention=False,
+        )
+    elif name == "AutoCorrelationLayer":
+        return AutoCorrelationLayer(
+            AutoCorrelation(
+                mask_flag=False,
+                factor=args.factor,
+                attention_dropout=args.dropout,
+                output_attention=False,
+            ),
+            args.d_model,
+            args.n_heads,
+        )
+    elif name == "Autoformer_EncoderLayer":
+        return Autoformer_EncoderLayer(
+            AutoCorrelationLayer(
+                AutoCorrelation(
+                    mask_flag=False,
+                    factor=args.factor,
+                    attention_dropout=args.dropout,
+                    output_attention=False,
+                ),
+                args.d_model,
+                args.n_heads,
+            ),
+            args.d_model,
+            d_ff=args.d_ff,
+            moving_avg=args.moving_avg,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "Autoformer_Encoder":
+        enc_layer = Autoformer_EncoderLayer(
+            AutoCorrelationLayer(
+                AutoCorrelation(
+                    mask_flag=False,
+                    factor=args.factor,
+                    attention_dropout=args.dropout,
+                    output_attention=False,
+                ),
+                args.d_model,
+                args.n_heads,
+            ),
+            args.d_model,
+            d_ff=args.d_ff,
+            moving_avg=args.moving_avg,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+        return Autoformer_Encoder([enc_layer], norm_layer=nn.LayerNorm(args.d_model))
+    elif name == "Autoformer_DecoderLayer":
+        return Autoformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            args.c_out,
+            d_ff=args.d_ff,
+            moving_avg=args.moving_avg,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "Autoformer_Decoder":
+        layer = Autoformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            args.c_out,
+            d_ff=args.d_ff,
+            moving_avg=args.moving_avg,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+        return Autoformer_Decoder(
+            [layer],
+            norm_layer=my_Layernorm(args.d_model),
+            projection=nn.Linear(args.d_model, args.c_out),
+        )
+    elif name == "scale_block":
+        return scale_block(
+            args,
+            args.down_sampling_window,
+            args.d_model,
+            args.n_heads,
+            args.d_ff,
+            args.e_layers,
+            args.dropout,
+            seg_num=max(1, args.seq_len // max(1, args.seg_len)),
+            factor=args.factor,
+        )
+    elif name == "Crossformer_DecoderLayer":
+        return Crossformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.seg_len,
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+        )
+    elif name == "Crossformer_Decoder":
+        layer = Crossformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.seg_len,
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+        )
+        return Crossformer_Decoder([layer])
+    elif name == "DWT1DInverse":
+        return DWT1DInverse()
+    elif name == "DataEmbedding":
+        return DataEmbedding(
+            args.enc_in, args.d_model, args.embed, args.freq, args.dropout
+        )
+    elif name == "DataEmbedding_inverted":
+        return DataEmbedding_inverted(
+            args.seq_len, args.d_model, args.embed, args.freq, args.dropout
+        )
+    elif name == "DataEmbedding_wo_pos":
+        return DataEmbedding_wo_pos(
+            args.enc_in, args.d_model, args.embed, args.freq, args.dropout
+        )
+    elif name == "ExponentialSmoothing":
+        return ExponentialSmoothing(args.d_model, args.n_heads, args.dropout)
+    elif name == "GrowthLayer":
+        return GrowthLayer(args.d_model, args.n_heads, dropout=args.dropout)
+    elif name == "LevelLayer":
+        return LevelLayer(args.d_model, args.c_out, dropout=args.dropout)
+    elif name == "ETSformer_EncoderLayer":
+        return ETSformer_EncoderLayer(
+            args.d_model,
+            args.n_heads,
+            args.c_out,
+            args.seq_len,
+            args.pred_len,
+            args.top_k,
+            dim_feedforward=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "ETSformer_Encoder":
+        layer = ETSformer_EncoderLayer(
+            args.d_model,
+            args.n_heads,
+            args.c_out,
+            args.seq_len,
+            args.pred_len,
+            args.top_k,
+            dim_feedforward=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+        return ETSformer_Encoder([layer])
+    elif name == "ETSformer_DecoderLayer":
+        return ETSformer_DecoderLayer(
+            args.d_model, args.n_heads, args.c_out, args.pred_len, dropout=args.dropout
+        )
+    elif name == "ETSformer_Decoder":
+        layer = ETSformer_DecoderLayer(
+            args.d_model, args.n_heads, args.c_out, args.pred_len, dropout=args.dropout
+        )
+        return ETSformer_Decoder([layer])
+    elif name == "FourierBlock":
+        return FourierBlock(
+            args.d_model,
+            args.d_model,
+            args.n_heads,
+            args.seq_len,
+            modes=args.top_k,
+        )
+    elif name == "FourierCrossAttention":
+        return FourierCrossAttention(
+            args.d_model,
+            args.d_model,
+            args.seq_len,
+            args.seq_len,
+            modes=args.top_k,
+            num_heads=args.n_heads,
+        )
+    elif name == "Attention_Block":
+        return Attention_Block(
+            args.d_model,
+            d_ff=args.d_ff,
+            n_heads=args.n_heads,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "self_attention":
+        return self_attention(FullAttention, args.d_model, args.n_heads)
+    elif name == "FullAttention":
+        return _build_full_attention(args, mask_flag=False)
+    elif name == "GraphBlock":
+        return GraphBlock(
+            args.d_model,
+            args.enc_in,
+            d_ff=args.d_ff,
+            n_heads=args.n_heads,
+            top_p=args.top_p,
+            dropout=args.dropout,
+            in_dim=args.seq_len,
+        )
+    elif name == "nconv":
+        return nconv()
+    elif name == "mixprop":
+        return mixprop(
+            args.conv_channel,
+            args.skip_channel,
+            args.gcn_depth,
+            args.gcn_dropout,
+            args.propalpha,
+        )
+    elif name == "MultiHeadAttention":
+        return MultiHeadAttention(args.d_model, args.n_heads, args.dropout)
+    elif name == "MultiWaveletTransform":
+        return MultiWaveletTransform(ich=args.d_model, k=args.top_k, alpha=args.d_model)
+    elif name == "MultiWaveletCross":
+        return MultiWaveletCross(
+            args.d_model,
+            args.d_model,
+            args.seq_len,
+            args.seq_len,
+            modes=args.top_k,
+            c=args.d_model,
+            k=args.top_k,
+            ich=args.d_model,
+        )
+    elif name == "FourierCrossAttentionW":
+        return FourierCrossAttentionW(
+            args.d_model,
+            args.d_model,
+            args.seq_len,
+            args.seq_len,
+            modes=args.top_k,
+        )
+    elif name == "Pyraformer_EncoderLayer":
+        return Pyraformer_EncoderLayer(
+            args.d_model,
+            args.d_ff,
+            args.n_heads,
+            dropout=args.dropout,
+        )
+    elif name == "Pyraformer_Encoder":
+        return Pyraformer_Encoder(args, window_size=[2, 2, 2], inner_size=3)
+    elif name == "Bottleneck_Construct":
+        return Bottleneck_Construct(args.d_model, [2, 2, 2], args.d_ff)
+    elif name == "DSAttention":
+        return DSAttention(
+            mask_flag=False,
+            factor=args.factor,
+            attention_dropout=args.dropout,
+            output_attention=False,
+        )
+    elif name == "ProbAttention":
+        return ProbAttention(
+            mask_flag=False,
+            factor=args.factor,
+            attention_dropout=args.dropout,
+            output_attention=False,
+        )
+    elif name == "AttentionLayer":
+        return _build_attention_layer(args, mask_flag=False)
+    elif name == "ReformerLayer":
+        return ReformerLayer(
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            args.n_heads,
+            causal=False,
+        )
+    elif name == "TwoStageAttentionLayer":
+        return TwoStageAttentionLayer(
+            args,
+            seg_num=max(1, args.seq_len // max(1, args.seg_len)),
+            factor=args.factor,
+            d_model=args.d_model,
+            n_heads=args.n_heads,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+        )
+    elif name == "Normalize":
+        return Normalize(args.enc_in)
+    elif name == "GCN":
+        return GCN(args.node_dim, args.n_heads)
+    elif name == "mask_moe":
+        return mask_moe(args.enc_in, top_p=args.top_p, in_dim=args.seq_len)
+    elif name == "GraphLearner":
+        return GraphLearner(
+            args.d_model, args.enc_in, top_p=args.top_p, in_dim=args.seq_len
+        )
+    elif name == "GraphFilter":
+        return GraphFilter(
+            args.d_model,
+            args.enc_in,
+            n_heads=args.n_heads,
+            top_p=args.top_p,
+            dropout=args.dropout,
+            in_dim=args.seq_len,
+        )
+    elif name == "TimeFilter_Backbone":
+        return TimeFilter_Backbone(
+            args.d_model,
+            args.enc_in,
+            d_ff=args.d_ff,
+            n_heads=args.n_heads,
+            n_blocks=max(1, args.e_layers),
+            top_p=args.top_p,
+            dropout=args.dropout,
+            in_dim=args.seq_len,
+        )
+    elif name == "Transformer_EncoderLayer":
+        return Transformer_EncoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "Transformer_Encoder":
+        layer = Transformer_EncoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+        return Transformer_Encoder([layer], norm_layer=nn.LayerNorm(args.d_model))
+    elif name == "Transformer_DecoderLayer":
+        return Transformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+    elif name == "Transformer_Decoder":
+        layer = Transformer_DecoderLayer(
+            _build_attention_layer(args, mask_flag=False),
+            _build_attention_layer(args, mask_flag=False),
+            args.d_model,
+            d_ff=args.d_ff,
+            dropout=args.dropout,
+            activation=args.activation,
+        )
+        return Transformer_Decoder(
+            [layer],
+            norm_layer=nn.LayerNorm(args.d_model),
+            projection=nn.Linear(args.d_model, args.c_out),
+        )
     elif name == "my_Layernorm":
         return my_Layernorm(args.d_model)
     elif name == "moving_avg":
@@ -197,7 +565,7 @@ def _init_simple_layer(name, args):
     elif name == "series_decomp":
         return series_decomp(args.moving_avg)
     elif name == "series_decomp_multi":
-        return series_decomp_multi(args.moving_avg)
+        return series_decomp_multi([args.moving_avg])
     elif name == "Inception_Block_V1":
         return Inception_Block_V1(args.d_model, args.d_model, args.num_kernels)
     elif name == "Inception_Block_V2":
@@ -258,7 +626,7 @@ def _init_simple_layer(name, args):
 
 
 def init_layer(name, args):
-    if name in simple_layer_dict:
+    if name in layer_dict:
         return _init_simple_layer(name, args)
 
     raise ValueError(f"Unsupported layer for now: {name}")
@@ -287,7 +655,7 @@ def _torch_layer_forward_test(name, args):
         if "weight" in param_name and module.__class__.__name__ == "EnEmbedding":
             nn.init.constant_(param, 0.01)
         elif "weight" in param_name:
-            nn.init.constant_(param, 0.1)
+            nn.init.constant_(param, 0.01)
         elif "bias" in param_name:
             nn.init.constant_(param, 0.0)
         elif "glb_token" in param_name:

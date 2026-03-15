@@ -4,7 +4,7 @@ use crate::args::{activation::ActivationArg, exp::TaskName, time_lengths::TimeLe
 use crate::layers::flatten_head::{FlattenHead, FlattenHeadConfig};
 use crate::layers::{
     embed::{
-        data_embedding::{DataEmbeddingInverted, DataEmbeddingInvertedConfig},
+        data_embedding_inverted::{DataEmbeddingInverted, DataEmbeddingInvertedConfig},
         en_embedding::{EnEmbedding, EnEmbeddingConfig},
     },
     self_attention_family::{

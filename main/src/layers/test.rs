@@ -23,7 +23,7 @@ pub fn assert_layer_forward<B: Backend>(dim: Dim, layer: Layer<B>) {
     let data_loader = setup_test_dataloader(data_config);
     let mut rust_vec = Vec::with_capacity(3);
     for batch in data_loader.iter() {
-        let output = layer.forward(batch.x);
+        let output = layer.forward(batch.x, batch.x_mark);
         rust_vec.push(output);
     }
     let rust_tensor = Tensor::cat(rust_vec, 0).to_data();

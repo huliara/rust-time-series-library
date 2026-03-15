@@ -10,7 +10,7 @@ use crate::{
 use burn::{
     config::Config,
     module::Module,
-    nn::{Dropout, DropoutConfig, Initializer, Linear, LinearConfig},
+    nn::{Dropout, DropoutConfig, Initializer},
     tensor::{backend::Backend, Tensor},
 };
 
@@ -112,53 +112,6 @@ impl<B: Backend> DataEmbedding<B> {
             out = out + self.temporal_embedding.forward(mark);
         }
 
-        self.dropout.forward(out)
-    }
-}
-
-#[derive(Module, Debug)]
-pub struct DataEmbeddingInverted<B: Backend> {
-    value_embedding: Linear<B>,
-    dropout: Dropout,
-}
-
-#[derive(Config, Debug)]
-pub struct DataEmbeddingInvertedConfig {
-    pub c_in: usize,
-    pub d_model: usize,
-    pub dropout: f64,
-    #[config(
-        default = "Initializer::KaimingUniform{gain:1.0/num_traits::Float::sqrt(3.0), fan_out_only:false}"
-    )]
-    pub initializer: Initializer,
-}
-
-impl DataEmbeddingInvertedConfig {
-    pub fn init<B: Backend>(&self, device: &B::Device) -> DataEmbeddingInverted<B> {
-        let value_embedding = LinearConfig::new(self.c_in, self.d_model)
-            .with_initializer(self.initializer.clone())
-            .init(device);
-        let dropout = DropoutConfig::new(self.dropout).init();
-        DataEmbeddingInverted {
-            value_embedding,
-            dropout,
-        }
-    }
-}
-
-impl<B: Backend> DataEmbeddingInverted<B> {
-    pub fn forward(&self, x: Tensor<B, 3>, x_mark: Option<Tensor<B, 3>>) -> Tensor<B, 3> {
-        // x: [Batch, Seq, Variate]
-        let x = x.permute([0, 2, 1]); // [Batch, Variate, Seq]
-
-        let inp = if let Some(mark) = x_mark {
-            // mark: [Batch, Seq, TimeFeatures]
-            Tensor::cat(vec![x, mark.permute([0, 2, 1])], 1) // [Batch, Variate+TimeFeatures, Seq]
-        } else {
-            x
-        };
-
-        let out = self.value_embedding.forward(inp); // [Batch, Var, d_model]
         self.dropout.forward(out)
     }
 }

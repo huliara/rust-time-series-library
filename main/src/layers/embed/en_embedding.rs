@@ -87,8 +87,6 @@ impl<B: Backend> EnEmbedding<B> {
 mod tests {
     use super::super::super::test::assert_layer_forward;
     use super::EnEmbeddingConfig;
-    use crate::args::exp::TaskName;
-    use crate::args::time_lengths::TimeLengths;
     use crate::layers::Layer;
     use crate::test_utils::dim::Dim;
     use burn::backend::Wgpu;
@@ -98,12 +96,6 @@ mod tests {
     fn test_enembed_forward() {
         type B = Wgpu;
         let device = Default::default();
-        let task_name = TaskName::LongTermForecast;
-        let lengths = TimeLengths {
-            seq_len: 96,
-            pred_len: 96,
-            label_len: 48,
-        };
 
         let initializer = Initializer::Constant { value: (0.01) };
         let onedim_config = EnEmbeddingConfig {

@@ -1,4 +1,5 @@
 pub mod data_embedding;
+pub mod data_embedding_inverted;
 pub mod en_embedding;
 pub mod fixed_embedding;
 pub mod patch_embedding;
