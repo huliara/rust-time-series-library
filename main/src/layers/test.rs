@@ -1,4 +1,6 @@
-use crate::args::{column_name::ColumnName, data_config::DataConfig};
+use crate::args::column_name::EtthColumnName;
+use crate::args::data_config::DataCommand;
+use crate::args::data_config::DataConfig;
 use crate::data::test_utils::setup_test_dataloader;
 use crate::layers::Layer;
 use crate::test_utils::{
@@ -14,11 +16,11 @@ use std::vec;
 pub fn assert_layer_forward<B: Backend>(dim: Dim, layer: Layer<B>) {
     let data_config = match dim {
         Dim::Multidim => DataConfig::default(),
-        Dim::Onedim => DataConfig {
-            train_features: vec![ColumnName::Ot],
-            targets: vec![ColumnName::Ot],
-            ..DataConfig::default()
-        },
+        Dim::Onedim => DataConfig::ETTh1(DataCommand {
+            train_features: vec![EtthColumnName::Ot],
+            targets: vec![EtthColumnName::Ot],
+            ..DataCommand::default()
+        }),
     };
     let data_loader = setup_test_dataloader(data_config);
     let mut rust_vec = Vec::with_capacity(3);

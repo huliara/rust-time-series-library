@@ -1,6 +1,6 @@
 use super::util::*;
 use crate::args::{
-    data_config::{Data, DataConfig},
+    data_config::{DataCommand, DataConfig},
     time_embed::TimeEmbed,
     time_lengths::TimeLengths,
 };
@@ -9,10 +9,11 @@ use burn::{
     tensor::{backend::Backend, Tensor, TensorData},
 };
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike};
+use clap::ValueEnum;
 use lib::env_path::get_dataset_path;
 use ndarray::{s, Array1, Array2, Axis};
 use polars::prelude::*;
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct TimeSeriesItem<B: Backend> {
@@ -72,12 +73,12 @@ pub enum ExpFlag {
 impl<B: Backend> TimeSeriesDataset<B> {
     fn parse_dates(
         df: &DataFrame,
-        data_type: &Data,
+        data_config: &DataConfig,
         start_idx: usize,
         slice_len: usize,
     ) -> Vec<NaiveDateTime> {
-        match data_type {
-            Data::ETTh1 => df
+        match data_config {
+            DataConfig::ETTh1(_) => df
                 .slice(start_idx as i64, slice_len)
                 .column("date")
                 .unwrap()
@@ -86,7 +87,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
                 .into_no_null_iter()
                 .map(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").expect("Parse date"))
                 .collect(),
-            Data::Exchange => df
+            DataConfig::Exchange(_) => df
                 .slice(start_idx as i64, slice_len)
                 .column("time")
                 .unwrap()
@@ -103,13 +104,17 @@ impl<B: Backend> TimeSeriesDataset<B> {
     }
 
     pub fn new(
-        args: &DataConfig,
+        data_config: &DataConfig,
+        data_command: &DataCommand<
+            impl Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display,
+        >,
         lengths: &TimeLengths,
         flag: ExpFlag,
         device: &B::Device,
     ) -> Self {
         // Default size
-        let path = PathBuf::from(get_dataset_path(args.path.clone()));
+
+        let path = PathBuf::from(get_dataset_path(data_command.path.clone()));
         let df = CsvReadOptions::default()
             .with_has_header(true)
             .try_into_reader_with_file_path(Some(path))
@@ -118,13 +123,13 @@ impl<B: Backend> TimeSeriesDataset<B> {
 
         match df {
             Ok(df) => {
-                let train_features = args
+                let train_features = data_command
                     .train_features
                     .clone()
                     .iter()
                     .map(|f| col(f.to_string()))
                     .collect::<Vec<_>>();
-                let target_features = args
+                let target_features = data_command
                     .targets
                     .clone()
                     .iter()
@@ -163,25 +168,25 @@ impl<B: Backend> TimeSeriesDataset<B> {
                 let num_test = (total_rows as f64 * 0.2) as usize;
                 let num_val = total_rows - num_train - num_test;
 
-                let raw_border1s = match args.data {
-                    Data::ETTh1 => (
+                let raw_border1s = match data_config {
+                    DataConfig::ETTh1(_) => (
                         0,
                         (12usize * 30 * 24).saturating_sub(lengths.seq_len),
                         (12usize * 30 * 24 + 4 * 30 * 24).saturating_sub(lengths.seq_len),
                     ),
-                    Data::Exchange => (
+                    DataConfig::Exchange(_) => (
                         0,
                         num_train.saturating_sub(lengths.seq_len),
                         total_rows.saturating_sub(num_test.saturating_add(lengths.seq_len)),
                     ),
                 };
-                let raw_border2s: (usize, usize, usize) = match args.data {
-                    Data::ETTh1 => (
+                let raw_border2s: (usize, usize, usize) = match data_config {
+                    DataConfig::ETTh1(_) => (
                         12 * 30 * 24,
                         12 * 30 * 24 + 4 * 30 * 24,
                         12 * 30 * 24 + 8 * 30 * 24,
                     ),
-                    Data::Exchange => (num_train, num_train + num_val, total_rows),
+                    DataConfig::Exchange(_) => (num_train, num_train + num_val, total_rows),
                 };
 
                 let clamp_idx = |idx: usize| idx.min(total_rows);
@@ -227,10 +232,10 @@ impl<B: Backend> TimeSeriesDataset<B> {
 
                 let slice_len = end_idx.saturating_sub(start_idx);
 
-                let data_stamp_array: Array2<f64> = match args.embed {
+                let data_stamp_array: Array2<f64> = match data_command.embed {
                     TimeEmbed::Fixed => {
                         let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, &args.data, start_idx, slice_len);
+                            Self::parse_dates(&df, &data_config, start_idx, slice_len);
                         let month: Vec<f64> = dates.iter().map(|d| d.month() as f64).collect();
                         let day: Vec<f64> = dates.iter().map(|d| d.day() as f64).collect();
                         let weekday: Vec<f64> = dates
@@ -253,7 +258,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
                     }
                     TimeEmbed::TimeF => {
                         let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, &args.data, start_idx, slice_len);
+                            Self::parse_dates(&df, &data_config, start_idx, slice_len);
                         time_features(&dates, "h")
                     }
                 };
@@ -334,8 +339,9 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
 }
 #[cfg(test)]
 mod tests {
-    use super::TimeSeriesDataset;
     use crate::args::time_lengths::TimeLengths;
+    use crate::data::dataset::get_dataset::get_dataset;
+    use crate::data::dataset::time_series_dataset::ExpFlag;
     use crate::test_utils::test_py::execute_dataset_test;
     use crate::{
         args::data_config::DataConfig,
@@ -349,8 +355,8 @@ mod tests {
         let device = Default::default();
         let data_config = DataConfig::default();
         let lengths = TimeLengths::default();
-        let rust_dataset =
-            TimeSeriesDataset::<B>::new(&data_config, &lengths, super::ExpFlag::Test, &device);
+
+        let rust_dataset = get_dataset::<B>(&data_config, &lengths, ExpFlag::Test, &device);
 
         let py_tensor_stamp = TensorData::new(py_dataset_result.1, rust_dataset.data_stamp.shape());
         let rust_tensor_stamp = rust_dataset.data_stamp.to_data();

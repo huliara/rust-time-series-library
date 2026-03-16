@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::args::{data_config::DataConfig, time_lengths::TimeLengths};
 
+use crate::data::dataset::get_dataset::get_dataset;
 use crate::data::{
     batcher::{TimeSeriesBatch, TimeSeriesBatcher},
     dataset::time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -20,7 +21,7 @@ pub fn create_data_loader<B: Backend>(
     flag: ExpFlag,
 ) -> Arc<dyn DataLoader<B, TimeSeriesBatch<B>>> {
     let device = B::Device::default();
-    let dataset: TimeSeriesDataset<B> = TimeSeriesDataset::new(data_config, lengths, flag, &device);
+    let dataset: TimeSeriesDataset<B> = get_dataset(data_config, lengths, flag, &device);
     match flag {
         ExpFlag::Train | ExpFlag::Val => DataLoaderBuilder::new(TimeSeriesBatcher::default())
             .batch_size(batch_size)

@@ -15,7 +15,6 @@ use crate::exp::{long_term_forecast::ForecastModel, Exp};
 
 fn main() {
     let args = RootArgs::parse();
-    args.model_config.data_config().assert_column_names();
     type Backend = Autodiff<Wgpu>;
     let device = Default::default();
     match args.task_name {

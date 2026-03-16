@@ -1,5 +1,6 @@
-use crate::args::data_config::Etth1Command;
-use crate::args::{column_name::ColumnName, data_config::DataConfig};
+use crate::args::column_name::EtthColumnName;
+use crate::args::data_config::DataCommand;
+use crate::args::data_config::DataConfig;
 use crate::data::test_utils::setup_test_dataloader;
 use crate::models::traits::Forecast;
 use crate::test_utils::{
@@ -16,11 +17,11 @@ use std::vec;
 pub fn assert_module_forecast<B: Backend, M: Forecast<B>>(dim: Dim, module: M) {
     let data_config = match dim {
         Dim::Multidim => DataConfig::default(),
-        Dim::Onedim => Etth1Command {
-            train_features: vec![ColumnName::Ot],
-            targets: vec![ColumnName::Ot],
-            ..Etth1Command::default()
-        },
+        Dim::Onedim => DataConfig::ETTh1(DataCommand {
+            train_features: vec![EtthColumnName::Ot],
+            targets: vec![EtthColumnName::Ot],
+            ..DataCommand::default()
+        }),
     };
     let data_loader = setup_test_dataloader(data_config);
     let mut rust_vec = Vec::with_capacity(3);

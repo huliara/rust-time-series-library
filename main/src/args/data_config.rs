@@ -2,52 +2,40 @@ use crate::args::{
     column_name::{EtthColumnName, ExchangeColumnName},
     time_embed::TimeEmbed,
 };
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 use core::fmt;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
 
-#[derive(Subcommand, Debug, Clone, Deserialize, Serialize)]
+#[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum DataConfig {
-    ETTh1(Etth1Command),
-    Exchange(ExchangeCommand),
+    ETTh1(DataCommand<EtthColumnName>),
+    Exchange(DataCommand<ExchangeColumnName>),
 }
 
 impl Default for DataConfig {
     fn default() -> Self {
-        DataConfig::ETTh1(Etth1Command::default())
+        DataConfig::ETTh1(DataCommand::default())
     }
 }
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct Etth1Command {
+pub struct DataCommand<
+    C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display,
+> {
     #[arg(long)]
     pub path: String,
     #[arg(long, num_args = 1..)]
-    pub train_features: Vec<EtthColumnName>,
+    pub train_features: Vec<C>,
 
     #[arg(long, num_args = 1..)]
-    pub targets: Vec<EtthColumnName>,
+    pub targets: Vec<C>,
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
 }
 
-#[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct ExchangeCommand {
-    //corresponds to features
-    #[arg(long)]
-    pub path: String,
-    #[arg(long, num_args = 1..)]
-    pub train_features: Vec<ExchangeColumnName>,
-
-    #[arg(long, num_args = 1..)]
-    pub targets: Vec<ExchangeColumnName>,
-
-    #[arg(long, value_enum)]
-    pub embed: TimeEmbed,
-}
-
-impl Default for Etth1Command {
+impl Default for DataCommand<EtthColumnName> {
     fn default() -> Self {
         Self {
             path: "ETT/ETTh1.csv".to_string(),
@@ -74,23 +62,24 @@ impl Default for Etth1Command {
     }
 }
 
-impl fmt::Display for DataConfig {
+impl<C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display> fmt::Display
+    for DataCommand<C>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DataConfig::ETTh1(cmd) => {
-                write!(
-                    f,
-                    "path: {}, train_features: {:?}, targets: {:?}, embed: {}",
-                    cmd.path, cmd.train_features, cmd.targets, cmd.embed
-                )
-            }
-            DataConfig::Exchange(cmd) => {
-                write!(
-                    f,
-                    "path: {}, train_features: {:?}, targets: {:?}, embed: {}",
-                    cmd.path, cmd.train_features, cmd.targets, cmd.embed
-                )
-            }
-        }
+        write!(
+            f,
+            "{}_{}_{}",
+            self.targets
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join("_"),
+            self.train_features
+                .iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>()
+                .join("_"),
+            self.embed
+        )
     }
 }
