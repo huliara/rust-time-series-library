@@ -200,7 +200,7 @@ mod tests {
     use burn::nn::Initializer;
 
     #[test]
-    fn test_patch_tst_forecast() {
+    fn test_patch_tst_forecast_onedim() {
         type B = Wgpu;
         let device = Default::default();
         let task_name = TaskName::LongTermForecast;
@@ -229,7 +229,38 @@ mod tests {
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
 
-        assert_module_forecast::<B, PatchTST<B>>(Dim::Onedim, model.clone());
+        assert_module_forecast::<B, PatchTST<B>>(Dim::Onedim, model);
+    }
+    #[test]
+    fn test_patch_tst_forecast_multidim() {
+        type B = Wgpu;
+        let device = Default::default();
+        let task_name = TaskName::LongTermForecast;
+        let patch_tst_args = PatchTSTArgs {
+            num_class: 10,
+            d_model: 512,
+            patch_len: 16,
+            stride: 8,
+            enc_in: 7,
+            e_layers: 2,
+            n_heads: 8,
+            d_ff: 2048,
+            dropout: 0.,
+            activation: ActivationArg::Gelu,
+        };
+
+        let lengths = TimeLengths {
+            seq_len: 96,
+            pred_len: 96,
+            label_len: 48,
+        };
+
+        let initializer = Initializer::Constant { value: (0.1) };
+
+        let model = PatchTSTConfig::new(patch_tst_args)
+            .with_initializer(initializer)
+            .init(task_name, lengths, &device);
+
         assert_module_forecast::<B, PatchTST<B>>(Dim::Multidim, model);
     }
 }
