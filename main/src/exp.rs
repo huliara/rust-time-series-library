@@ -13,7 +13,8 @@ use lib::env_path::get_result_root_path;
 
 fn get_model_args_string(model_config: &ModelConfig) -> String {
     match model_config {
-        ModelConfig::PatchTST(args) => {
+        ModelConfig::PatchTST(cmd) => {
+            let args = &cmd.model_args;
             format!(
                 "dm{}nh{}el{}df{}pt{}st{}ei{}do{}ac{}",
                 args.d_model,
@@ -27,13 +28,15 @@ fn get_model_args_string(model_config: &ModelConfig) -> String {
                 args.activation,
             )
         }
-        ModelConfig::DLinear(args) => {
+        ModelConfig::DLinear(cmd) => {
+            let args = &cmd.model_args;
             format!(
                 "ei{}ind{}ma{}",
                 args.enc_in, args.individual, args.moving_avg,
             )
         }
-        ModelConfig::TimeXer(args) => {
+        ModelConfig::TimeXer(cmd) => {
+            let args = &cmd.model_args;
             format!(
                 "dm{}nh{}el{}df{}pt{}ei{}do{}ac{}",
                 args.d_model,
@@ -81,11 +84,12 @@ pub(crate) trait Infer<B: AutodiffBackend> {
 
 pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
     fn run(&self, args: RootArgs, device: B::Device) {
+        let data_config = args.model_config.data_config().clone();
         let result_path = format!(
             "{}/{}/{}/{}",
             get_result_root_path(),
             args.model_config,
-            args.data_config,
+            data_config,
             get_model_args_string(&args.model_config)
         );
 
@@ -100,7 +104,7 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
                 &result_path,
                 args.exp_config.clone(),
                 args.model_config.clone(),
-                args.data_config.clone(),
+                data_config.clone(),
                 args.time_lengths.clone(),
                 device.clone(),
             );
@@ -112,7 +116,7 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
             args.exp_config.clone(),
             args.model_config.clone(),
             args.time_lengths.clone(),
-            args.data_config.clone(),
+            data_config,
             device,
         );
     }

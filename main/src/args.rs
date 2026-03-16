@@ -9,7 +9,7 @@ pub mod time_lengths;
 use self::exp::TaskName;
 use self::time_lengths::TimeLengths;
 use crate::{
-    args::{backend::Backend, data_config::DataConfig, model_config::ModelConfig},
+    args::{backend::Backend, model_config::ModelConfig},
     exp::long_term_forecast::train::ExpConfig,
 };
 use clap::Parser;
@@ -24,8 +24,6 @@ pub struct RootArgs {
     pub task_name: TaskName,
     #[arg(long, value_enum)]
     pub backend: Backend,
-    #[command(flatten)]
-    pub data_config: DataConfig,
     #[command(flatten)]
     pub time_lengths: TimeLengths,
     #[command(flatten)]

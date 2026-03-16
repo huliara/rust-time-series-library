@@ -30,17 +30,17 @@ pub struct ForecastModel<B: Backend> {
 impl<B: Backend> ForecastModel<B> {
     pub fn new(model_config: ModelConfig, lengths: TimeLengths, device: &B::Device) -> Self {
         let model = match model_config {
-            ModelConfig::PatchTST(args) => Model::PatchTST(PatchTSTConfig::new(args).init(
+            ModelConfig::PatchTST(cmd) => Model::PatchTST(PatchTSTConfig::new(cmd.model_args).init(
                 TaskName::LongTermForecast,
                 lengths,
                 device,
             )),
-            ModelConfig::DLinear(args) => Model::DLinear(DLinearConfig::new(args).init(
+            ModelConfig::DLinear(cmd) => Model::DLinear(DLinearConfig::new(cmd.model_args).init(
                 TaskName::LongTermForecast,
                 lengths,
                 device,
             )),
-            ModelConfig::TimeXer(args) => Model::TimeXer(TimeXerConfig::new(args).init(
+            ModelConfig::TimeXer(cmd) => Model::TimeXer(TimeXerConfig::new(cmd.model_args).init(
                 TaskName::LongTermForecast,
                 lengths,
                 device,
