@@ -296,10 +296,12 @@ def _torch_forward_test(name, args):
                 nn.init.constant_(param, 0.1)
     elif name == "TimeXer":
         for name, param in module.named_parameters():
-            if "weight" in name:
+            if "weight" in name and "norm" in name:
+                nn.init.constant_(param, 1.0)
+            elif "weight" in name:
                 nn.init.constant_(param, 0.01)
             elif "bias" in name:
-                nn.init.constant_(param, 0.01)
+                nn.init.constant_(param, 0.0)
             elif "glb_token" in name:
                 nn.init.constant_(param, 0.01)
     else:

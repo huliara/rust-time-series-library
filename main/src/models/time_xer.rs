@@ -251,7 +251,7 @@ impl<B: Backend> TimeXer<B> {
     fn forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
         let means = x_enc.clone().mean_dim(1);
         let centered = x_enc.clone().sub(means.clone());
-        let var = centered.clone().var(1);
+        let var = centered.clone().mul(centered).mean_dim(1);
         let stdev = (var + 1e-5).sqrt();
 
         let x_enc = if self.use_norm {
@@ -260,7 +260,6 @@ impl<B: Backend> TimeXer<B> {
             x_enc
         };
 
-        let [b, _seq, n] = x_enc.dims();
         let en_x = x_enc.clone().permute([0, 2, 1]);
         let (en_embed, n_vars) = self.en_embedding.forward(en_x);
         let ex_embed = self.ex_embedding.forward(x_enc.clone(), Some(x_mark_enc));
@@ -282,13 +281,7 @@ impl<B: Backend> TimeXer<B> {
             return dec_out;
         }
 
-        let stdev_last = stdev
-            .slice([0..b, 0..1, (n - 1)..n])
-            .repeat_dim(1, self.pred_len);
-        let means_last = means
-            .slice([0..b, 0..1, (n - 1)..n])
-            .repeat_dim(1, self.pred_len);
-        dec_out.mul(stdev_last).add(means_last)
+        dec_out.mul(stdev).add(means)
     }
 }
 
@@ -319,7 +312,7 @@ mod tests {
     use burn::nn::Initializer;
 
     #[test]
-    fn test_time_xer_forecast() {
+    fn test_time_xer_forecast_one_dim() {
         type B = Wgpu;
         let device = Default::default();
         let task_name = TaskName::LongTermForecast;
@@ -345,6 +338,25 @@ mod tests {
             activation: ActivationArg::Gelu,
         };
 
+        let onedim_model = TimeXerConfig::new(onedim_args)
+            .with_initializer(initializer.clone())
+            .init(task_name.clone(), lengths.clone(), &device);
+
+        assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
+    }
+    #[test]
+    fn test_time_xer_forecast_multi_dim() {
+        type B = Wgpu;
+        let device = Default::default();
+
+        let task_name = TaskName::LongTermForecast;
+        let lengths = TimeLengths {
+            seq_len: 96,
+            pred_len: 96,
+            label_len: 48,
+        };
+
+        let initializer = Initializer::Constant { value: (0.01) };
         let multidim_args = TimeXerArgs {
             d_model: 512,
             patch_len: 16,
@@ -352,22 +364,15 @@ mod tests {
             e_layers: 2,
             n_heads: 8,
             d_ff: 2048,
-            dropout: 0.0,
+            dropout: 0.1,
             use_norm: true,
             embed: "timeF".to_string(),
             freq: "h".to_string(),
             activation: ActivationArg::Gelu,
         };
-
-        let onedim_model = TimeXerConfig::new(onedim_args)
-            .with_initializer(initializer.clone())
-            .init(task_name.clone(), lengths.clone(), &device);
-
         let multidim_model = TimeXerConfig::new(multidim_args)
             .with_initializer(initializer)
             .init(task_name, lengths, &device);
-
-        assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
         assert_module_forecast::<B, TimeXer<B>>(Dim::Multidim, multidim_model);
     }
 }
