@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct PatchTSTCommand {
-    #[command(flatten)]
+    #[command(subcommand)]
     pub data_config: DataConfig,
     #[command(flatten)]
     pub model_args: PatchTSTArgs,
@@ -15,7 +15,7 @@ pub struct PatchTSTCommand {
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct DLinearCommand {
-    #[command(flatten)]
+    #[command(subcommand)]
     pub data_config: DataConfig,
     #[command(flatten)]
     pub model_args: DLinearArgs,
@@ -23,7 +23,7 @@ pub struct DLinearCommand {
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct TimeXerCommand {
-    #[command(flatten)]
+    #[command(subcommand)]
     pub data_config: DataConfig,
     #[command(flatten)]
     pub model_args: TimeXerArgs,

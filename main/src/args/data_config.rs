@@ -1,45 +1,73 @@
-use crate::args::{column_name::ColumnName, time_embed::TimeEmbed};
-use clap::{Args, ValueEnum};
+use crate::args::{
+    column_name::{EtthColumnName, ExchangeColumnName},
+    time_embed::TimeEmbed,
+};
+use clap::{Args, Subcommand};
 use core::fmt;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
+
+#[derive(Subcommand, Debug, Clone, Deserialize, Serialize)]
+pub enum DataConfig {
+    ETTh1(Etth1Command),
+    Exchange(ExchangeCommand),
+}
+
+impl Default for DataConfig {
+    fn default() -> Self {
+        DataConfig::ETTh1(Etth1Command::default())
+    }
+}
+
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct DataConfig {
-    #[arg(long, value_enum)]
-    pub data: Data,
-    //corresponds to features
+pub struct Etth1Command {
     #[arg(long)]
     pub path: String,
     #[arg(long, num_args = 1..)]
-    pub train_features: Vec<ColumnName>,
+    pub train_features: Vec<EtthColumnName>,
 
     #[arg(long, num_args = 1..)]
-    pub targets: Vec<ColumnName>,
+    pub targets: Vec<EtthColumnName>,
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
 }
-impl Default for DataConfig {
+
+#[derive(Args, Debug, Clone, Deserialize, Serialize)]
+pub struct ExchangeCommand {
+    //corresponds to features
+    #[arg(long)]
+    pub path: String,
+    #[arg(long, num_args = 1..)]
+    pub train_features: Vec<ExchangeColumnName>,
+
+    #[arg(long, num_args = 1..)]
+    pub targets: Vec<ExchangeColumnName>,
+
+    #[arg(long, value_enum)]
+    pub embed: TimeEmbed,
+}
+
+impl Default for Etth1Command {
     fn default() -> Self {
         Self {
-            data: Data::ETTh1,
             path: "ETT/ETTh1.csv".to_string(),
             train_features: vec![
-                ColumnName::Hufl,
-                ColumnName::Hull,
-                ColumnName::Mufl,
-                ColumnName::Mull,
-                ColumnName::Lufl,
-                ColumnName::Lull,
-                ColumnName::Ot,
+                EtthColumnName::Hufl,
+                EtthColumnName::Hull,
+                EtthColumnName::Mufl,
+                EtthColumnName::Mull,
+                EtthColumnName::Lufl,
+                EtthColumnName::Lull,
+                EtthColumnName::Ot,
             ],
             targets: vec![
-                ColumnName::Hufl,
-                ColumnName::Hull,
-                ColumnName::Mufl,
-                ColumnName::Mull,
-                ColumnName::Lufl,
-                ColumnName::Lull,
-                ColumnName::Ot,
+                EtthColumnName::Hufl,
+                EtthColumnName::Hull,
+                EtthColumnName::Mufl,
+                EtthColumnName::Mull,
+                EtthColumnName::Lufl,
+                EtthColumnName::Lull,
+                EtthColumnName::Ot,
             ],
             embed: TimeEmbed::TimeF,
         }
@@ -48,56 +76,20 @@ impl Default for DataConfig {
 
 impl fmt::Display for DataConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}_{}_{}",
-            self.data,
-            self.targets
-                .iter()
-                .map(|t| t.to_string())
-                .collect::<Vec<_>>()
-                .join("_"),
-            self.train_features
-                .iter()
-                .map(|f| f.to_string())
-                .collect::<Vec<_>>()
-                .join("_")
-        )
-    }
-}
-#[derive(Debug, Clone, ValueEnum, Deserialize, Serialize, strum::Display)]
-pub enum Data {
-    ETTh1,
-    Exchange,
-}
-
-impl DataConfig {
-    pub fn assert_column_names(&self) {
-        assert!(
-            !self.train_features.is_empty(),
-            "train_features must contain at least one column name"
-        );
-        assert!(
-            !self.targets.is_empty(),
-            "targets must contain at least one column name"
-        );
-
-        match self.data {
-            Data::ETTh1 => {
-                for column in self.train_features.iter().chain(self.targets.iter()) {
-                    assert!(
-                        matches!(column, ColumnName::Hufl | ColumnName::Hull | ColumnName::Mufl | ColumnName::Mull | ColumnName::Lufl | ColumnName::Lull | ColumnName::Ot),
-                        "For ETTh1 and ETTh2 datasets, column names must be one of HUFL, HULL, MUFL, MULL, LUFL, LULL, OT"
-                    );
-                }
+        match self {
+            DataConfig::ETTh1(cmd) => {
+                write!(
+                    f,
+                    "path: {}, train_features: {:?}, targets: {:?}, embed: {}",
+                    cmd.path, cmd.train_features, cmd.targets, cmd.embed
+                )
             }
-            Data::Exchange => {
-                for column in self.train_features.iter().chain(self.targets.iter()) {
-                    assert!(
-                        matches!(column, ColumnName::Open | ColumnName::High | ColumnName::Low | ColumnName::Close | ColumnName::TickVolume | ColumnName::Spread | ColumnName::RealVolume),
-                        "For Exchange dataset, column names must be one of open, high, low, close, tick_volume, spread, real_volume"
-                    );
-                }
+            DataConfig::Exchange(cmd) => {
+                write!(
+                    f,
+                    "path: {}, train_features: {:?}, targets: {:?}, embed: {}",
+                    cmd.path, cmd.train_features, cmd.targets, cmd.embed
+                )
             }
         }
     }

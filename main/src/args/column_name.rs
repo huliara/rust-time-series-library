@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
-pub enum ColumnName {
+pub enum EtthColumnName {
     #[strum(serialize = "HUFL")]
     Hufl,
     #[strum(serialize = "HULL")]
@@ -17,6 +17,10 @@ pub enum ColumnName {
     Lull,
     #[strum(serialize = "OT")]
     Ot,
+}
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+pub enum ExchangeColumnName {
     #[strum(serialize = "open")]
     Open,
     #[strum(serialize = "high")]
