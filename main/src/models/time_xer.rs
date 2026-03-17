@@ -248,6 +248,11 @@ pub struct TimeXer<B: Backend> {
 
 impl<B: Backend> TimeXer<B> {
     fn forecast(&self, x_enc: Tensor<B, 3>, x_mark_enc: Tensor<B, 3>) -> Tensor<B, 3> {
+        // Materialize inputs once to avoid backend fusion handle invalidation on WGPU.
+        let device = x_enc.device();
+        let x_enc = Tensor::from_data(x_enc.into_data(), &device);
+        let x_mark_enc = Tensor::from_data(x_mark_enc.into_data(), &device);
+
         let means = x_enc.clone().mean_dim(1);
         let centered = x_enc.clone().sub(means.clone());
         let var = centered.clone().mul(centered).mean_dim(1);
@@ -259,7 +264,7 @@ impl<B: Backend> TimeXer<B> {
             x_enc
         };
 
-        let en_x = x_enc.clone().permute([0, 2, 1]);
+        let en_x = x_enc.clone().swap_dims(1, 2);
         let (en_embed, n_vars) = self.en_embedding.forward(en_x);
         let ex_embed = self.ex_embedding.forward(x_enc.clone(), Some(x_mark_enc));
 
@@ -273,7 +278,7 @@ impl<B: Backend> TimeXer<B> {
         ]);
         let dec_out = self
             .head
-            .forward(enc_out.permute([0, 1, 3, 2]))
+            .forward(enc_out.swap_dims(2, 3))
             .swap_dims(1, 2);
 
         if !self.use_norm {

@@ -38,11 +38,11 @@ impl DataEmbeddingInvertedConfig {
 impl<B: Backend> DataEmbeddingInverted<B> {
     pub fn forward(&self, x: Tensor<B, 3>, x_mark: Option<Tensor<B, 3>>) -> Tensor<B, 3> {
         // x: [Batch, Seq, Variate]
-        let x = x.permute([0, 2, 1]); // [Batch, Variate, Seq]
+        let x = x.swap_dims(1, 2); // [Batch, Variate, Seq]
 
         let inp = if let Some(mark) = x_mark {
             // mark: [Batch, Seq, TimeFeatures]
-            Tensor::cat(vec![x, mark.permute([0, 2, 1])], 1) // [Batch, Variate+TimeFeatures, Seq]
+            Tensor::cat(vec![x, mark.swap_dims(1, 2)], 1) // [Batch, Variate+TimeFeatures, Seq]
         } else {
             x
         };
