@@ -1,11 +1,11 @@
-cargo run -- \
-    --num-epochs 10 \
+cd main && cargo run -p main -- \
+    --num-epochs 1 \
     --task-name long-term-forecast \
     --backend wgpu \
     patch-tst \
-    --data et-th1cd  \
-    --train-features ot\
-    --targets ot  \
+    --activation gelu \
+    et-th1 \
+    --train-features ot \
+    --targets ot \
     --embed time-f \
-    --path ETT/ETTh1.csv\
-    --activation gelu
+    --path ETT/ETTh1.csv
