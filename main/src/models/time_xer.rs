@@ -136,8 +136,6 @@ pub struct TimeXerArgs {
     pub d_ff: usize,
     #[arg(long, default_value_t = 16)]
     pub patch_len: usize,
-    #[arg(long, default_value_t = 7)]
-    pub enc_in: usize,
     #[arg(long, default_value_t = 0.1)]
     pub dropout: f64,
     #[arg(long, default_value_t = true)]
@@ -164,12 +162,13 @@ impl TimeXerConfig {
         &self,
         task_name: TaskName,
         lengths: TimeLengths,
+        input_dim: usize,
         device: &B::Device,
     ) -> TimeXer<B> {
         let seq_len = lengths.seq_len;
         let pred_len = lengths.pred_len;
         let patch_num = seq_len / self.args.patch_len;
-        let n_vars = self.args.enc_in;
+        let n_vars = input_dim;
 
         let en_embedding = EnEmbeddingConfig::new(
             n_vars,
@@ -327,7 +326,6 @@ mod tests {
         let onedim_args = TimeXerArgs {
             d_model: 512,
             patch_len: 16,
-            enc_in: 1,
             e_layers: 2,
             n_heads: 8,
             d_ff: 2048,
@@ -340,7 +338,7 @@ mod tests {
 
         let onedim_model = TimeXerConfig::new(onedim_args)
             .with_initializer(initializer.clone())
-            .init(task_name.clone(), lengths.clone(), &device);
+            .init(task_name.clone(), lengths.clone(), 1, &device);
 
         assert_module_forecast::<B, TimeXer<B>>(Dim::Onedim, onedim_model);
     }
@@ -360,7 +358,6 @@ mod tests {
         let multidim_args = TimeXerArgs {
             d_model: 512,
             patch_len: 16,
-            enc_in: 7,
             e_layers: 2,
             n_heads: 8,
             d_ff: 2048,
@@ -372,7 +369,7 @@ mod tests {
         };
         let multidim_model = TimeXerConfig::new(multidim_args)
             .with_initializer(initializer)
-            .init(task_name, lengths, &device);
+            .init(task_name, lengths, 7, &device);
         assert_module_forecast::<B, TimeXer<B>>(Dim::Multidim, multidim_model);
     }
 }

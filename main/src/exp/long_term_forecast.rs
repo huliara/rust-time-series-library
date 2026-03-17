@@ -42,11 +42,15 @@ impl<B: Backend> ForecastModel<B> {
                 lengths,
                 device,
             )),
-            ModelConfig::TimeXer(cmd) => Model::TimeXer(TimeXerConfig::new(cmd.model_args).init(
-                TaskName::LongTermForecast,
-                lengths,
-                device,
-            )),
+            ModelConfig::TimeXer(cmd) => {
+                let input_dim = cmd.data_config.input_dim();
+                Model::TimeXer(TimeXerConfig::new(cmd.model_args).init(
+                    TaskName::LongTermForecast,
+                    lengths,
+                    input_dim,
+                    device,
+                ))
+            }
         };
         ForecastModel { model }
     }

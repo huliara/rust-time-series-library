@@ -38,13 +38,12 @@ fn get_model_args_string(model_config: &ModelConfig) -> String {
         ModelConfig::TimeXer(cmd) => {
             let args = &cmd.model_args;
             format!(
-                "dm{}nh{}el{}df{}pt{}ei{}do{}ac{}",
+                "dm{}nh{}el{}df{}pt{}do{}ac{}",
                 args.d_model,
                 args.n_heads,
                 args.e_layers,
                 args.d_ff,
                 args.patch_len,
-                args.enc_in,
                 args.dropout,
                 args.activation,
             )

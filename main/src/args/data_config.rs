@@ -19,6 +19,15 @@ impl Default for DataConfig {
     }
 }
 
+impl DataConfig {
+    pub fn input_dim(&self) -> usize {
+        match self {
+            DataConfig::ETTh1(cmd) => cmd.train_features.len(),
+            DataConfig::Exchange(cmd) => cmd.train_features.len(),
+        }
+    }
+}
+
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct DataCommand<
     C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display,
