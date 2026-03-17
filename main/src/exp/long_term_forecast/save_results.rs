@@ -74,10 +74,7 @@ pub fn plot_single_prediction_in_dir(
 
     chart
         .draw_series(LineSeries::new(context_series, &RED))
-        .unwrap()
-        .label("Context")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
-
+        .unwrap();
     chart
         .draw_series(LineSeries::new(pred_series, &BLUE))
         .unwrap()
