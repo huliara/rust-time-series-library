@@ -276,10 +276,7 @@ impl<B: Backend> TimeXer<B> {
             enc_dims[1] as isize,
             enc_dims[2] as isize,
         ]);
-        let dec_out = self
-            .head
-            .forward(enc_out.swap_dims(2, 3))
-            .swap_dims(1, 2);
+        let dec_out = self.head.forward(enc_out.swap_dims(2, 3)).swap_dims(1, 2);
 
         if !self.use_norm {
             return dec_out;

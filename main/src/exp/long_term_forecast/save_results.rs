@@ -2,14 +2,14 @@ use burn::{prelude::Backend, Tensor};
 use plotters::prelude::*;
 use std::io::Write;
 
-pub fn plot_single_prediction(
-    exp_root_path: &str,
+pub fn plot_single_prediction_in_dir(
+    output_dir: &str,
     sample_idx: usize,
     context_series_values: &[f32],
     pred_series_values: &[f32],
     true_series_values: &[f32],
 ) {
-    let file_name = format!("{exp_root_path}/test/prediction_{}.png", sample_idx);
+    let file_name = format!("{output_dir}/prediction_{}.png", sample_idx);
     let root = BitMapBackend::new(&file_name, (1024, 768)).into_drawing_area();
     root.fill(&WHITE).unwrap();
 
@@ -99,6 +99,22 @@ pub fn plot_single_prediction(
 
     root.present().unwrap();
     println!("Saved plot to {}", file_name);
+}
+
+pub fn plot_single_prediction(
+    exp_root_path: &str,
+    sample_idx: usize,
+    context_series_values: &[f32],
+    pred_series_values: &[f32],
+    true_series_values: &[f32],
+) {
+    plot_single_prediction_in_dir(
+        &format!("{exp_root_path}/test"),
+        sample_idx,
+        context_series_values,
+        pred_series_values,
+        true_series_values,
+    );
 }
 
 pub fn save_results<B: Backend>(exp_root_path: &str, error: Tensor<B, 3>, futures: Tensor<B, 3>) {

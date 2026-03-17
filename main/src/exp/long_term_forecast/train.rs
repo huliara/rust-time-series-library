@@ -1,7 +1,11 @@
 use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
-    exp::{create_artifact_dir, long_term_forecast::ForecastModel, Train},
+    exp::{
+        long_term_forecast::{save_results::plot_single_prediction_in_dir, ForecastModel},
+        Train,
+    },
+    models::traits::Forecast,
 };
 use burn::{
     optim::AdamConfig,
@@ -18,6 +22,7 @@ use burn::{
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
+use std::fs;
 #[derive(Debug, Args, Clone, Deserialize, Serialize)]
 pub struct ExpConfig {
     #[arg(long, default_value_t = 10)]
@@ -44,8 +49,6 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
     ) where
         B: AutodiffBackend,
     {
-        create_artifact_dir(result_path);
-
         B::seed(&device, exp_config.seed);
 
         let dataloader_train = create_data_loader(
@@ -83,8 +86,60 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             .num_epochs(exp_config.num_epochs)
             .summary();
         let optimizer = AdamConfig::new().init();
-        let model = ForecastModel::<B>::new(model_config, lengths, &device);
+        let model = ForecastModel::<B>::new(model_config, lengths.clone(), &device);
         let result = training.launch(Learner::new(model, optimizer, exp_config.learning_rate));
+
+        // Plot a few training samples right after training for quick sanity checks.
+        let train_plot_dir = format!("{result_path}/train");
+        fs::create_dir_all(&train_plot_dir).unwrap();
+        let dataloader_train_plot = create_data_loader(
+            &data_config,
+            &lengths,
+            exp_config.batch_size,
+            exp_config.num_workers,
+            exp_config.seed,
+            ExpFlag::Train,
+        );
+
+        if let Some(batch) = dataloader_train_plot.iter().next() {
+            let contexts = batch.x.clone();
+            let futures = batch.y.clone();
+            let predicts = result
+                .model
+                .forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
+
+            let num_plots = usize::min(5, contexts.dims()[0]);
+            let feature_idx = contexts.dims()[2] - 1;
+
+            for i in 0..num_plots {
+                let context_vec = contexts
+                    .clone()
+                    .slice(s![i, .., feature_idx])
+                    .into_data()
+                    .to_vec::<f32>()
+                    .unwrap();
+                let pred_vec = predicts
+                    .clone()
+                    .slice(s![i, .., feature_idx])
+                    .into_data()
+                    .to_vec::<f32>()
+                    .unwrap();
+                let future_vec = futures
+                    .clone()
+                    .slice(s![i, .., feature_idx])
+                    .into_data()
+                    .to_vec::<f32>()
+                    .unwrap();
+
+                plot_single_prediction_in_dir(
+                    &train_plot_dir,
+                    i,
+                    &context_vec,
+                    &pred_vec,
+                    &future_vec,
+                );
+            }
+        }
 
         result
             .model
