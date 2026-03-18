@@ -91,6 +91,6 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
             );
         }
 
-        save_results(exp_root_path, error, contexts);
+        save_results(exp_root_path, error, futures);
     }
 }
