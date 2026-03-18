@@ -61,6 +61,8 @@ pub fn plot_multi_feature_prediction_in_dir(
 
     let y_margin = (max_y - min_y) * 0.1;
     let y_range = (min_y - y_margin)..(max_y + y_margin);
+    let y_min = min_y - y_margin;
+    let y_max = max_y + y_margin;
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
@@ -74,6 +76,25 @@ pub fn plot_multi_feature_prediction_in_dir(
         .unwrap();
 
     chart.configure_mesh().draw().unwrap();
+
+    let boundary_x = context_len as f32;
+    chart
+        .draw_series(DashedLineSeries::new(
+            vec![(boundary_x, y_min), (boundary_x, y_max)],
+            8,
+            6,
+            ShapeStyle::from(&BLACK.mix(0.5)).stroke_width(2),
+        ))
+        .unwrap()
+        .label("context/predict boundary")
+        .legend(|(x, y)| {
+            DashedPathElement::new(
+                vec![(x, y), (x + 20, y)],
+                8,
+                6,
+                ShapeStyle::from(&BLACK.mix(0.5)).stroke_width(2),
+            )
+        });
 
     for feature_idx in 0..feature_count {
         let color = feature_color(feature_idx);
@@ -162,118 +183,6 @@ pub fn plot_multi_feature_prediction(
     true_series_values: &[Vec<f32>],
 ) {
     plot_multi_feature_prediction_in_dir(
-        &format!("{exp_root_path}/test"),
-        sample_idx,
-        context_series_values,
-        pred_series_values,
-        true_series_values,
-    );
-}
-
-pub fn plot_single_prediction_in_dir(
-    output_dir: &str,
-    sample_idx: usize,
-    context_series_values: &[f32],
-    pred_series_values: &[f32],
-    true_series_values: &[f32],
-) {
-    let file_name = format!("{output_dir}/prediction_{}.png", sample_idx);
-    let root = BitMapBackend::new(&file_name, (1024, 768)).into_drawing_area();
-    root.fill(&WHITE).unwrap();
-
-    let mut context_series = Vec::new();
-    let mut pred_series = Vec::new();
-    let mut true_series = Vec::new();
-
-    let mut min_y = f32::MAX;
-    let mut max_y = f32::MIN;
-    let context_len = context_series_values.len();
-    let time_steps = pred_series_values.len();
-
-    for (t, &c_val) in context_series_values.iter().enumerate() {
-        context_series.push((t as f32, c_val));
-        if c_val < min_y {
-            min_y = c_val;
-        }
-        if c_val > max_y {
-            max_y = c_val;
-        }
-    }
-
-    for (t, (&p_val, &t_val)) in pred_series_values
-        .iter()
-        .zip(true_series_values.iter())
-        .enumerate()
-    {
-        let x = (context_len + t) as f32;
-        pred_series.push((x, p_val));
-        true_series.push((x, t_val));
-
-        if p_val < min_y {
-            min_y = p_val;
-        }
-        if p_val > max_y {
-            max_y = p_val;
-        }
-        if t_val < min_y {
-            min_y = t_val;
-        }
-        if t_val > max_y {
-            max_y = t_val;
-        }
-    }
-
-    let y_margin = (max_y - min_y) * 0.1;
-    let y_range = (min_y - y_margin)..(max_y + y_margin);
-    let total_steps = (context_len + time_steps) as f32;
-
-    let mut chart = ChartBuilder::on(&root)
-        .caption(
-            format!("Sample {} Prediction vs Ground Truth", sample_idx),
-            ("sans-serif", 20).into_font(),
-        )
-        .margin(10)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(0f32..total_steps, y_range)
-        .unwrap();
-
-    chart.configure_mesh().draw().unwrap();
-
-    chart
-        .draw_series(LineSeries::new(context_series, &RED))
-        .unwrap();
-    chart
-        .draw_series(LineSeries::new(pred_series, &BLUE))
-        .unwrap()
-        .label("Prediction")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
-
-    chart
-        .draw_series(LineSeries::new(true_series, &RED))
-        .unwrap()
-        .label("Ground Truth")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
-
-    chart
-        .configure_series_labels()
-        .background_style(WHITE.mix(0.8))
-        .border_style(BLACK)
-        .draw()
-        .unwrap();
-
-    root.present().unwrap();
-    println!("Saved plot to {}", file_name);
-}
-
-pub fn plot_single_prediction(
-    exp_root_path: &str,
-    sample_idx: usize,
-    context_series_values: &[f32],
-    pred_series_values: &[f32],
-    true_series_values: &[f32],
-) {
-    plot_single_prediction_in_dir(
         &format!("{exp_root_path}/test"),
         sample_idx,
         context_series_values,
@@ -418,35 +327,6 @@ mod tests {
         assert!(results_content.contains("MSPE:"));
 
         println!("Test output saved to: {}", test_dir.display());
-    }
-
-    #[test]
-    fn test_plot_single_prediction() {
-        let exp_root_path = &get_result_root_path();
-        let test_dir = std::path::Path::new(exp_root_path).join("test_save_results/test");
-        fs::create_dir_all(&test_dir).unwrap();
-
-        let sample_idx = 9999;
-        let plot_path = test_dir.join(format!("prediction_{}.png", sample_idx));
-        if plot_path.exists() {
-            fs::remove_file(&plot_path).unwrap();
-        }
-
-        let context_series_values = vec![1.0_f32, 1.5, 2.0, 2.5, 3.0];
-        let pred_series_values = vec![3.2_f32, 3.4, 3.1, 3.6];
-        let true_series_values = vec![3.0_f32, 3.5, 3.0, 3.7];
-
-        plot_single_prediction(
-            &format!("{exp_root_path}/test_save_results"),
-            sample_idx,
-            &context_series_values,
-            &pred_series_values,
-            &true_series_values,
-        );
-
-        assert!(plot_path.exists());
-        let metadata = fs::metadata(&plot_path).unwrap();
-        assert!(metadata.len() > 0);
     }
 
     #[test]
