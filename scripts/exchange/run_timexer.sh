@@ -6,6 +6,6 @@ cd main && cargo run -p main  -- \
     --activation gelu \
     exchange \
     --train-features open low\
-    --targets open low\
+    --targets  open low \
     --embed time-f \
     --path v2/USDJPY/d1/20020101-20250810.csv

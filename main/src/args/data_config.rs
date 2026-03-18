@@ -26,11 +26,22 @@ impl DataConfig {
             DataConfig::Exchange(cmd) => cmd.train_features.len(),
         }
     }
+
+    pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
+        match self {
+            DataConfig::ETTh1(cmd) => cmd
+                .validate_feature_order()
+                .map_err(|msg| format!("DataConfig validation failed: {msg}")),
+            DataConfig::Exchange(cmd) => cmd
+                .validate_feature_order()
+                .map_err(|msg| format!("DataConfig validation failed: {msg}")),
+        }
+    }
 }
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct DataCommand<
-    C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display,
+    C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug,
 > {
     #[arg(long)]
     pub path: String,
@@ -42,6 +53,30 @@ pub struct DataCommand<
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
+}
+
+impl<C> DataCommand<C>
+where
+    C: Clone
+        + std::marker::Send
+        + std::marker::Sync
+        + 'static
+        + ValueEnum
+        + Display
+        + PartialEq
+        + Debug,
+{
+    pub fn validate_feature_order(&self) -> Result<(), String> {
+        if self.targets != self.train_features[..self.targets.len()] {
+            return Err(format!(
+                "Targets {:?} do not match the first train features {:?}. Ensure that the order of train features' head is the same as the target features .",
+                self.targets,
+                self.train_features[..self.targets.len()].to_vec()
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for DataCommand<EtthColumnName> {
@@ -71,8 +106,8 @@ impl Default for DataCommand<EtthColumnName> {
     }
 }
 
-impl<C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display> fmt::Display
-    for DataCommand<C>
+impl<C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug>
+    fmt::Display for DataCommand<C>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

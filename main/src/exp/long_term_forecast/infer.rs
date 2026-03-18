@@ -63,7 +63,7 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         let plot_offset = contexts.dims()[1] / 10;
 
         for i in 0..10 {
-            let feature_idx = contexts.dims()[2] - 1;
+            let feature_idx = 0;
             let context_vec = contexts
                 .clone()
                 .slice(s![i * plot_offset, .., feature_idx])

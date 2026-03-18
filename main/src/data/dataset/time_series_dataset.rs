@@ -13,7 +13,10 @@ use clap::ValueEnum;
 use lib::env_path::get_dataset_path;
 use ndarray::{s, Array1, Array2, Axis};
 use polars::prelude::*;
-use std::{fmt::Display, path::PathBuf};
+use std::{
+    fmt::{Debug, Display},
+    path::PathBuf,
+};
 
 #[derive(Clone, Debug)]
 pub struct TimeSeriesItem<B: Backend> {
@@ -106,7 +109,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
     pub fn new(
         data_config: &DataConfig,
         data_command: &DataCommand<
-            impl Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display,
+            impl std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug,
         >,
         lengths: &TimeLengths,
         flag: ExpFlag,
