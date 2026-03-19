@@ -21,7 +21,7 @@ fn feature_color(index: usize) -> RGBColor {
 
 pub fn plot_multi_feature_prediction_in_dir(
     output_dir: &str,
-    sample_idx: usize,
+    sample_name: &str,
     context_series_values: &[Vec<f32>],
     pred_series_values: &[Vec<f32>],
     true_series_values: &[Vec<f32>],
@@ -34,7 +34,7 @@ pub fn plot_multi_feature_prediction_in_dir(
         return;
     }
 
-    let file_name = format!("{output_dir}/prediction_multi_{}.png", sample_idx);
+    let file_name = format!("{output_dir}/{}.png", sample_name);
     let root = BitMapBackend::new(&file_name, (1280, 900)).into_drawing_area();
     root.fill(&WHITE).unwrap();
 
@@ -66,7 +66,7 @@ pub fn plot_multi_feature_prediction_in_dir(
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            format!("Sample {} Multi-Feature Prediction", sample_idx),
+            format!("Sample {} Multi-Feature Prediction", sample_name),
             ("sans-serif", 20).into_font(),
         )
         .margin(10)
@@ -176,18 +176,34 @@ pub fn plot_multi_feature_prediction_in_dir(
 }
 
 pub fn plot_multi_feature_prediction(
-    exp_root_path: &str,
+    dir_path: &str,
     sample_idx: usize,
     context_series_values: &[Vec<f32>],
     pred_series_values: &[Vec<f32>],
     true_series_values: &[Vec<f32>],
 ) {
     plot_multi_feature_prediction_in_dir(
-        &format!("{exp_root_path}/test"),
-        sample_idx,
+        dir_path,
+        &format!("multi_{}", sample_idx),
         context_series_values,
         pred_series_values,
         true_series_values,
+    );
+}
+
+pub fn plot_single_feature_prediction(
+    dir_path: &str,
+    sample_idx: usize,
+    context_series: &[f32],
+    pred_series: &[f32],
+    true_series: &[f32],
+) {
+    plot_multi_feature_prediction_in_dir(
+        dir_path,
+        &format!("single_{}", sample_idx),
+        &[context_series.to_vec()],
+        &[pred_series.to_vec()],
+        &[true_series.to_vec()],
     );
 }
 

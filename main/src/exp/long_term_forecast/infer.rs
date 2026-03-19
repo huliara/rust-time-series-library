@@ -5,7 +5,9 @@ use crate::{
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{
-            save_results::{plot_multi_feature_prediction, save_results},
+            save_results::{
+                plot_multi_feature_prediction, plot_single_feature_prediction, save_results,
+            },
             train::ExpConfig,
             ForecastModel,
         },
@@ -46,7 +48,8 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         let mut _contexts = Vec::with_capacity(3);
         let mut _predicts = Vec::with_capacity(3);
         let mut _futures = Vec::with_capacity(3);
-        fs::create_dir_all(format!("{exp_root_path}/test/")).unwrap();
+        let test_dir = format!("{exp_root_path}/test");
+        fs::create_dir_all(&test_dir).unwrap();
 
         for batch in dataloader_test.iter() {
             let output =
@@ -97,12 +100,13 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
                 future_multi.push(future_vec);
             }
 
-            plot_multi_feature_prediction(
-                exp_root_path,
-                i + 1000,
-                &context_multi,
-                &pred_multi,
-                &future_multi,
+            plot_multi_feature_prediction(&test_dir, i, &context_multi, &pred_multi, &future_multi);
+            plot_single_feature_prediction(
+                &test_dir,
+                i,
+                &context_multi[0],
+                &pred_multi[0],
+                &future_multi[0],
             );
         }
 

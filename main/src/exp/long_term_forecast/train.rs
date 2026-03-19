@@ -2,7 +2,10 @@ use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
-        long_term_forecast::{save_results::plot_multi_feature_prediction_in_dir, ForecastModel},
+        long_term_forecast::{
+            save_results::{plot_multi_feature_prediction, plot_multi_feature_prediction_in_dir},
+            ForecastModel,
+        },
         Train,
     },
     models::traits::Forecast,
@@ -141,7 +144,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                     future_multi.push(future_vec);
                 }
 
-                plot_multi_feature_prediction_in_dir(
+                plot_multi_feature_prediction(
                     &train_plot_dir,
                     i,
                     &context_multi,

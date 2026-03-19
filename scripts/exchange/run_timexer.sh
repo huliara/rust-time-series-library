@@ -5,7 +5,7 @@ cd main && cargo run -p main  -- \
     time-xer \
     --activation gelu \
     exchange \
-    --train-features open low\
-    --targets  open low \
+    --train-features open\
+    --targets  open \
     --embed time-f \
     --path v2/USDJPY/d1/20020101-20250810.csv
