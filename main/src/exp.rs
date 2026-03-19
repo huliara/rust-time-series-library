@@ -51,12 +51,6 @@ fn get_model_args_string(model_config: &ModelConfig) -> String {
     }
 }
 
-fn create_artifact_dir(artifact_dir: &str) {
-    // Remove existing artifacts before to get an accurate learner summary
-    std::fs::remove_dir_all(artifact_dir).ok();
-    std::fs::create_dir_all(artifact_dir).ok();
-}
-
 pub(crate) trait Train<B: AutodiffBackend> {
     fn train(
         &self,
@@ -84,12 +78,17 @@ pub(crate) trait Infer<B: AutodiffBackend> {
 pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
     fn run(&self, args: RootArgs, device: B::Device) {
         let data_config = args.model_config.data_config().clone();
+        let detail_path = format!(
+            "{}{}",
+            get_model_args_string(&args.model_config),
+            data_config.inner_string()
+        );
         let result_path = format!(
             "{}/{}/{}/{}",
             get_result_root_path(),
             args.model_config,
             data_config,
-            get_model_args_string(&args.model_config)
+            detail_path
         );
 
         std::fs::create_dir_all(&result_path).ok();

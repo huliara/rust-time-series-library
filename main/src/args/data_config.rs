@@ -26,6 +26,12 @@ impl DataConfig {
             DataConfig::Exchange(cmd) => cmd.train_features.len(),
         }
     }
+    pub fn inner_string(&self) -> String {
+        match self {
+            DataConfig::ETTh1(cmd) => cmd.to_string(),
+            DataConfig::Exchange(cmd) => cmd.to_string(),
+        }
+    }
 
     pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
         match self {

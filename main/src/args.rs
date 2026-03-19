@@ -32,9 +32,6 @@ pub struct RootArgs {
     #[arg(long)]
     pub skip_training: bool,
 
-    #[arg(long, default_value = "test")]
-    pub model_id: String,
-
     #[arg(long, default_value = "./checkpoints/")]
     pub checkpoints: String,
 }

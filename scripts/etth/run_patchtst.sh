@@ -1,8 +1,7 @@
-cd main && cargo run -p main  -- \
+cd main && cargo run -p main -- \
     --num-epochs 50 \
     --task-name long-term-forecast \
     --backend wgpu \
-    --batch-size 128 \
     patch-tst \
     --activation gelu \
     et-th1 \
