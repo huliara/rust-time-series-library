@@ -290,28 +290,32 @@ mod tests {
     use burn_ndarray::NdArray;
 
     use lib::env_path::get_result_root_path;
-    use std::fs;
+    use std::{fs, path::PathBuf};
 
     use super::*;
 
+    fn prepare_test_dir(name: &str) -> PathBuf {
+        let root = PathBuf::from(get_result_root_path());
+        let dir = root.join("test_save_results").join(name);
+        if dir.exists() {
+            fs::remove_dir_all(&dir).unwrap();
+        }
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
-    fn test_save_results() {
+    fn test_save_results_writes_metric_files() {
         type B = NdArray;
+        let base_dir = prepare_test_dir("metrics");
+        let test_path = base_dir.to_string_lossy().to_string();
+        fs::create_dir_all(base_dir.join("test")).unwrap();
 
-        // Create a persistent directory for output
-        let exp_root_path = &get_result_root_path();
-        let test_path = format!("{exp_root_path}/test_save_results");
-        fs::create_dir_all(format!("{test_path}/test")).unwrap();
-
-        // Create dummy data
-        // Batch=20, Time=96, Features=2
         let batch_size = 20;
         let time_steps = 96;
         let features = 2;
-
         let device = Default::default();
 
-        // Generate random data for predicts and futures
         let predicts: Tensor<B, 3> = Tensor::random(
             [batch_size, time_steps, features],
             Distribution::Uniform(0.0, 10.0),
@@ -327,35 +331,48 @@ mod tests {
 
         save_results(&test_path, error, futures);
 
-        // Verify files are created
-        let test_dir = std::path::Path::new(&test_path).join("test");
+        let test_dir = base_dir.join("test");
         assert!(test_dir.exists());
         assert!(test_dir.join("mse.csv").exists());
         assert!(test_dir.join("mae.csv").exists());
         assert!(test_dir.join("results.txt").exists());
 
-        // Optional: Verify content of results.txt
         let results_content = std::fs::read_to_string(test_dir.join("results.txt")).unwrap();
         assert!(results_content.contains("MSE:"));
         assert!(results_content.contains("MAE:"));
         assert!(results_content.contains("RMSE:"));
         assert!(results_content.contains("MAPE:"));
         assert!(results_content.contains("MSPE:"));
-
-        println!("Test output saved to: {}", test_dir.display());
     }
 
     #[test]
-    fn test_plot_multi_feature_prediction() {
-        let exp_root_path = &get_result_root_path();
-        let test_dir = std::path::Path::new(exp_root_path).join("test_save_results/test");
-        fs::create_dir_all(&test_dir).unwrap();
+    fn test_plot_single_feature_prediction_creates_png() {
+        let base_dir = prepare_test_dir("single_plot");
+        let sample_idx = 7;
+        let plot_path = base_dir.join(format!("single_{}.png", sample_idx));
 
-        let sample_idx = 10000;
-        let plot_path = test_dir.join(format!("prediction_multi_{}.png", sample_idx));
-        if plot_path.exists() {
-            fs::remove_file(&plot_path).unwrap();
-        }
+        let context = vec![1.0_f32, 1.5, 2.0, 2.5, 3.0];
+        let pred = vec![3.2_f32, 3.4, 3.1, 3.6];
+        let truth = vec![3.0_f32, 3.5, 3.0, 3.7];
+
+        plot_single_feature_prediction(
+            &base_dir.to_string_lossy(),
+            sample_idx,
+            &context,
+            &pred,
+            &truth,
+        );
+
+        assert!(plot_path.exists());
+        let metadata = fs::metadata(&plot_path).unwrap();
+        assert!(metadata.len() > 0);
+    }
+
+    #[test]
+    fn test_plot_multi_feature_prediction_creates_png() {
+        let base_dir = prepare_test_dir("multi_plot");
+        let sample_idx = 11;
+        let plot_path = base_dir.join(format!("multi_{}.png", sample_idx));
 
         let context_series_values = vec![
             vec![1.0_f32, 1.5, 2.0, 2.5, 3.0],
@@ -365,7 +382,7 @@ mod tests {
         let true_series_values = vec![vec![3.0_f32, 3.5, 3.0, 3.7], vec![2.9_f32, 3.0, 3.1, 3.4]];
 
         plot_multi_feature_prediction(
-            &format!("{exp_root_path}/test_save_results"),
+            &base_dir.to_string_lossy(),
             sample_idx,
             &context_series_values,
             &pred_series_values,
