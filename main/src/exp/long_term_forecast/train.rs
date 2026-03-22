@@ -1,5 +1,6 @@
 use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
+    data::batcher::TimeSeriesBatch,
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{save_results::plot_multi_feature_prediction, ForecastModel},
@@ -8,17 +9,12 @@ use crate::{
     models::traits::Forecast,
 };
 use burn::{
-    optim::AdamConfig,
+    module::AutodiffModule,
+    nn::loss::MseLoss,
+    optim::{AdamConfig, GradientsParams, Optimizer},
     prelude::*,
     record::CompactRecorder,
     tensor::backend::AutodiffBackend,
-    train::{
-        metric::{
-            store::{Aggregate, Direction, Split},
-            LossMetric,
-        },
-        Learner, MetricEarlyStoppingStrategy, StoppingCondition, SupervisedTraining,
-    },
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
@@ -55,7 +51,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
     {
         B::seed(&device, exp_config.seed);
 
-        let dataloader_train = create_data_loader(
+        let dataloader_train = create_data_loader::<B>(
             &data_config,
             &lengths,
             exp_config.batch_size,
@@ -64,7 +60,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             ExpFlag::Train,
         );
 
-        let dataloader_valid = create_data_loader(
+        let dataloader_valid = create_data_loader::<B::InnerBackend>(
             &data_config,
             &lengths,
             exp_config.batch_size,
@@ -73,30 +69,94 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             ExpFlag::Val,
         );
 
-        let loss = LossMetric::new();
+        let mut model = ForecastModel::<B>::new(model_config, lengths.clone(), &device);
+        let mut optim = AdamConfig::new().init();
 
-        let stopping_strategy = MetricEarlyStoppingStrategy::new(
-            &loss,
-            Aggregate::Mean,
-            Direction::Lowest,
-            Split::Train,
-            StoppingCondition::NoImprovementSince { n_epochs: 5 },
-        );
+        for epoch in 1..=exp_config.num_epochs {
+            let mut train_loss_sum = 0.0f64;
+            let mut train_steps = 0usize;
 
-        let training = SupervisedTraining::new(result_path, dataloader_train, dataloader_valid)
-            .metrics((loss,))
-            .early_stopping(stopping_strategy)
-            .with_file_checkpointer(CompactRecorder::new())
-            .num_epochs(exp_config.num_epochs)
-            .summary();
-        let optimizer = AdamConfig::new().init();
-        let model = ForecastModel::<B>::new(model_config, lengths.clone(), &device);
-        let result = training.launch(Learner::new(model, optimizer, exp_config.learning_rate));
+            for (iteration, batch) in dataloader_train.iter().enumerate() {
+                let TimeSeriesBatch {
+                    x,
+                    x_mark,
+                    y,
+                    y_mark,
+                } = batch;
+
+                let mut dec_input = Tensor::zeros_like(&y);
+                dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
+
+                let output = model.forecast(x, x_mark, dec_input, y_mark);
+                let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
+
+                let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
+                train_loss_sum += loss_scalar;
+                train_steps += 1;
+
+                let grads = loss.backward();
+                let grads = GradientsParams::from_grads(grads, &model);
+                model = optim.step(exp_config.learning_rate, model, grads);
+
+                if iteration % 50 == 0 {
+                    println!(
+                        "[Train - Epoch {} - Iteration {}] Loss {:.6}",
+                        epoch, iteration, loss_scalar
+                    );
+                }
+            }
+
+            let mut valid_loss_sum = 0.0f64;
+            let mut valid_steps = 0usize;
+            let model_valid = model.valid();
+
+            for (iteration, batch) in dataloader_valid.iter().enumerate() {
+                let TimeSeriesBatch {
+                    x,
+                    x_mark,
+                    y,
+                    y_mark,
+                } = batch;
+
+                let mut dec_input = Tensor::zeros_like(&y);
+                dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
+
+                let output = model_valid.forecast(x, x_mark, dec_input, y_mark);
+                let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
+                let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
+
+                valid_loss_sum += loss_scalar;
+                valid_steps += 1;
+
+                if iteration % 50 == 0 {
+                    println!(
+                        "[Valid - Epoch {} - Iteration {}] Loss {:.6}",
+                        epoch, iteration, loss_scalar
+                    );
+                }
+            }
+
+            let train_avg = if train_steps > 0 {
+                train_loss_sum / train_steps as f64
+            } else {
+                0.0
+            };
+            let valid_avg = if valid_steps > 0 {
+                valid_loss_sum / valid_steps as f64
+            } else {
+                0.0
+            };
+
+            println!(
+                "[Epoch {} Summary] train_loss={:.6} valid_loss={:.6}",
+                epoch, train_avg, valid_avg
+            );
+        }
 
         // Plot a few training samples right after training for quick sanity checks.
         let train_plot_dir = format!("{result_path}/train");
         fs::create_dir_all(&train_plot_dir).unwrap();
-        let dataloader_train_plot = create_data_loader(
+        let dataloader_train_plot = create_data_loader::<B>(
             &data_config,
             &lengths,
             exp_config.batch_size,
@@ -108,9 +168,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
         if let Some(batch) = dataloader_train_plot.iter().next() {
             let contexts = batch.x.clone();
             let futures = batch.y.clone();
-            let predicts = result
-                .model
-                .forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
+            let predicts = model.forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
 
             let num_plots = usize::min(5, contexts.dims()[0]);
             let feature_count = contexts.dims()[2];
@@ -155,8 +213,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             }
         }
 
-        result
-            .model
+        model
             .save_file(format!("{result_path}/model"), &CompactRecorder::new())
             .expect("Trained model should be saved successfully");
     }
