@@ -80,9 +80,10 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
     fn run(&self, args: RootArgs, device: B::Device) {
         let data_config = args.model_config.data_config().clone();
         let detail_path = format!(
-            "{}{}",
+            "{}{}{}",
             get_model_args_string(&args.model_config),
-            data_config.inner_string()
+            data_config.inner_string(),
+            &args.exp_config,
         );
         let result_path = format!(
             "{}/{}/{}/{}",

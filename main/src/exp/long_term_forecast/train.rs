@@ -37,6 +37,16 @@ pub struct ExpConfig {
     pub loss_alpha: f64,
 }
 
+impl std::fmt::Display for ExpConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ep{}-bs{}-lr{:.0e}-ls{:.0e}-la{:.1}",
+            self.num_epochs, self.batch_size, self.learning_rate, self.loss_scale, self.loss_alpha
+        )
+    }
+}
+
 impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
     fn train(
         &self,
