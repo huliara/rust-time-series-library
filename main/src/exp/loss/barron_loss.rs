@@ -12,13 +12,22 @@ enum BarronLossAlpha {
 }
 
 pub struct BarronLoss {
-    pub alpha: BarronLossAlpha,
+    alpha: BarronLossAlpha,
     pub scale: f64,
 }
 
 impl BarronLoss {
-    pub fn new(alpha: BarronLossAlpha, scale: f64) -> Self {
-        Self { alpha, scale }
+    pub fn new(alpha: f64, scale: f64) -> Self {
+        let alpha_enum = match alpha {
+            2.0 => BarronLossAlpha::Two,
+            0.0 => BarronLossAlpha::Zero,
+            f64::NEG_INFINITY => BarronLossAlpha::NegativeInf,
+            a => BarronLossAlpha::General(a),
+        };
+        Self {
+            alpha: alpha_enum,
+            scale,
+        }
     }
 
     pub fn forward<const D: usize, B: Backend>(

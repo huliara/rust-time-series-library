@@ -4,6 +4,7 @@ use crate::{
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{save_results::plot_multi_feature_prediction, ForecastModel},
+        loss::barron_loss::BarronLoss,
         Train,
     },
     models::traits::Forecast,
@@ -31,10 +32,10 @@ pub struct ExpConfig {
     pub seed: u64,
     #[arg(long, default_value_t = 1.0e-4)]
     pub learning_rate: f64,
-    #[arg(long, default_value_t = 1.0)]
-    pub loss_scale: f64,
     #[arg(long, default_value_t = 2.0)]
     pub loss_alpha: f64,
+    #[arg(long, default_value_t = 1.0)]
+    pub loss_scale: f64,
 }
 
 impl std::fmt::Display for ExpConfig {
@@ -98,7 +99,11 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
 
                 let output = model.forecast(x, x_mark, dec_input, y_mark);
-                let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
+                let loss = BarronLoss::new(exp_config.loss_alpha, exp_config.loss_scale).forward(
+                    output.clone(),
+                    y.clone(),
+                    nn::loss::Reduction::Mean,
+                );
 
                 let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
                 train_loss_sum += loss_scalar;
