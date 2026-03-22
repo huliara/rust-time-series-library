@@ -5,9 +5,7 @@ use crate::{
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{
-            save_results::{
-                plot_multi_feature_prediction, plot_single_feature_prediction, save_results,
-            },
+            save_results::{sample_plots::sample_plots, save_metric::save_results},
             train::ExpConfig,
             ForecastModel,
         },
@@ -37,6 +35,7 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
 
         let model: ForecastModel<B> =
             ForecastModel::<B>::new(model_config, lengths.clone(), &device).load_record(record);
+
         let dataloader_test = create_data_loader(
             &data_config,
             &lengths,
@@ -63,53 +62,7 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         let predicts = Tensor::cat(_predicts, 0);
         let futures = Tensor::cat(_futures, 0);
         let error = predicts.clone() - futures.clone();
-        let sample_count = contexts.dims()[0];
-        let feature_count = contexts.dims()[2];
-        let num_plots = usize::min(10, sample_count);
-        let plot_step = usize::max(1, sample_count / num_plots);
-
-        for i in 0..num_plots {
-            let sample_idx = usize::min(i * plot_step, sample_count - 1);
-
-            let mut context_multi = Vec::with_capacity(feature_count);
-            let mut pred_multi = Vec::with_capacity(feature_count);
-            let mut future_multi = Vec::with_capacity(feature_count);
-
-            for feature_idx in 0..feature_count {
-                let context_vec = contexts
-                    .clone()
-                    .slice(s![sample_idx, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-                let pred_vec = predicts
-                    .clone()
-                    .slice(s![sample_idx, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-                let future_vec = futures
-                    .clone()
-                    .slice(s![sample_idx, .., feature_idx])
-                    .into_data()
-                    .to_vec::<f32>()
-                    .unwrap();
-
-                context_multi.push(context_vec);
-                pred_multi.push(pred_vec);
-                future_multi.push(future_vec);
-            }
-
-            plot_multi_feature_prediction(&test_dir, i, &context_multi, &pred_multi, &future_multi);
-            plot_single_feature_prediction(
-                &test_dir,
-                i,
-                &context_multi[0],
-                &pred_multi[0],
-                &future_multi[0],
-            );
-        }
-
+        sample_plots(contexts, predicts, futures.clone(), 16, &test_dir);
         save_results(exp_root_path, error, futures);
     }
 }

@@ -1,9 +1,16 @@
 use crate::{
     args::{data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths},
-    data::batcher::TimeSeriesBatch,
-    data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
+    data::{
+        batcher::TimeSeriesBatch, data_loader::create_data_loader,
+        dataset::time_series_dataset::ExpFlag,
+    },
     exp::{
-        long_term_forecast::{save_results::plot_multi_feature_prediction, ForecastModel},
+        long_term_forecast::{
+            save_results::{
+                plot_prediction::plot_multi_feature_prediction, sample_plots::sample_plots,
+            },
+            ForecastModel,
+        },
         loss::barron_loss::BarronLoss,
         Train,
     },
@@ -218,46 +225,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             let predicts = model.forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
 
             let num_plots = usize::min(5, contexts.dims()[0]);
-            let feature_count = contexts.dims()[2];
-
-            for i in 0..num_plots {
-                let mut context_multi = Vec::with_capacity(feature_count);
-                let mut pred_multi = Vec::with_capacity(feature_count);
-                let mut future_multi = Vec::with_capacity(feature_count);
-
-                for feature_idx in 0..feature_count {
-                    let context_vec = contexts
-                        .clone()
-                        .slice(s![i, .., feature_idx])
-                        .into_data()
-                        .to_vec::<f32>()
-                        .unwrap();
-                    let pred_vec = predicts
-                        .clone()
-                        .slice(s![i, .., feature_idx])
-                        .into_data()
-                        .to_vec::<f32>()
-                        .unwrap();
-                    let future_vec = futures
-                        .clone()
-                        .slice(s![i, .., feature_idx])
-                        .into_data()
-                        .to_vec::<f32>()
-                        .unwrap();
-
-                    context_multi.push(context_vec);
-                    pred_multi.push(pred_vec);
-                    future_multi.push(future_vec);
-                }
-
-                plot_multi_feature_prediction(
-                    &train_plot_dir,
-                    i,
-                    &context_multi,
-                    &pred_multi,
-                    &future_multi,
-                );
-            }
+            sample_plots(contexts, predicts, futures, num_plots, &train_plot_dir);
         }
 
         model
