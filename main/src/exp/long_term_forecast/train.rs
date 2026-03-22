@@ -19,7 +19,10 @@ use burn::{
 };
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{
+    fs,
+    io::{BufWriter, Write},
+};
 #[derive(Debug, Args, Clone, Deserialize, Serialize)]
 pub struct ExpConfig {
     #[arg(long, default_value_t = 10)]
@@ -82,10 +85,20 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
 
         let mut model = ForecastModel::<B>::new(model_config, lengths.clone(), &device);
         let mut optim = AdamConfig::new().init();
+        let train_log_root = format!("{result_path}/train");
+        let valid_log_root = format!("{result_path}/valid");
+        fs::create_dir_all(&train_log_root).unwrap();
+        fs::create_dir_all(&valid_log_root).unwrap();
 
         for epoch in 1..=exp_config.num_epochs {
             let mut train_loss_sum = 0.0f64;
             let mut train_steps = 0usize;
+            let epoch_dir = format!("{train_log_root}/epoch-{epoch}");
+            fs::create_dir_all(&epoch_dir).unwrap();
+            let epoch_loss_log = format!("{epoch_dir}/Loss.log");
+            let epoch_loss_file =
+                fs::File::create(&epoch_loss_log).expect("Failed to create per-epoch Loss.log");
+            let mut epoch_loss_writer = BufWriter::new(epoch_loss_file);
 
             for (iteration, batch) in dataloader_train.iter().enumerate() {
                 let TimeSeriesBatch {
@@ -108,6 +121,9 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
                 train_loss_sum += loss_scalar;
                 train_steps += 1;
+                // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
+                writeln!(&mut epoch_loss_writer, "{loss_scalar},1")
+                    .expect("Failed to write training loss log line");
 
                 let grads = loss.backward();
                 let grads = GradientsParams::from_grads(grads, &model);
@@ -123,6 +139,14 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
 
             let mut valid_loss_sum = 0.0f64;
             let mut valid_steps = 0usize;
+
+            let valid_epoch_dir = format!("{valid_log_root}/epoch-{epoch}");
+
+            fs::create_dir_all(&valid_epoch_dir).unwrap();
+            let valid_epoch_loss_log = format!("{valid_epoch_dir}/Loss.log");
+            let valid_epoch_loss_file = fs::File::create(&valid_epoch_loss_log)
+                .expect("Failed to create per-epoch validation Loss.log");
+            let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
             let model_valid = model.valid();
 
             for (iteration, batch) in dataloader_valid.iter().enumerate() {
@@ -142,6 +166,9 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
 
                 valid_loss_sum += loss_scalar;
                 valid_steps += 1;
+                // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
+                writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
+                    .expect("Failed to write validation loss log line");
 
                 if iteration % 50 == 0 {
                     println!(
@@ -166,11 +193,16 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 "[Epoch {} Summary] train_loss={:.6} valid_loss={:.6}",
                 epoch, train_avg, valid_avg
             );
+            epoch_loss_writer
+                .flush()
+                .expect("Failed to flush per-epoch Loss.log");
+            valid_epoch_loss_writer
+                .flush()
+                .expect("Failed to flush per-epoch validation Loss.log");
         }
 
         // Plot a few training samples right after training for quick sanity checks.
-        let train_plot_dir = format!("{result_path}/train");
-        fs::create_dir_all(&train_plot_dir).unwrap();
+        let train_plot_dir = train_log_root;
         let dataloader_train_plot = create_data_loader::<B>(
             &data_config,
             &lengths,

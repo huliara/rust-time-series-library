@@ -238,7 +238,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
                 let data_stamp_array: Array2<f64> = match data_command.embed {
                     TimeEmbed::Fixed => {
                         let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, &data_config, start_idx, slice_len);
+                            Self::parse_dates(&df, data_config, start_idx, slice_len);
                         let month: Vec<f64> = dates.iter().map(|d| d.month() as f64).collect();
                         let day: Vec<f64> = dates.iter().map(|d| d.day() as f64).collect();
                         let weekday: Vec<f64> = dates
@@ -261,7 +261,7 @@ impl<B: Backend> TimeSeriesDataset<B> {
                     }
                     TimeEmbed::TimeF => {
                         let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, &data_config, start_idx, slice_len);
+                            Self::parse_dates(&df, data_config, start_idx, slice_len);
                         time_features(&dates, "h")
                     }
                 };

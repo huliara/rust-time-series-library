@@ -13,10 +13,10 @@ pub fn get_dataset<B: Backend>(
 ) -> TimeSeriesDataset<B> {
     match data_config {
         DataConfig::ETTh1(ref data_command) => {
-            TimeSeriesDataset::<B>::new(&data_config, data_command, &lengths, flag, &device)
+            TimeSeriesDataset::<B>::new(data_config, data_command, lengths, flag, device)
         }
         DataConfig::Exchange(ref data_command) => {
-            TimeSeriesDataset::<B>::new(&data_config, data_command, &lengths, flag, &device)
+            TimeSeriesDataset::<B>::new(data_config, data_command, lengths, flag, device)
         }
     }
 }
