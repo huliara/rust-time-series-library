@@ -1,4 +1,5 @@
 pub mod long_term_forecast;
+pub mod loss;
 use burn::tensor::backend::AutodiffBackend;
 use std::time::Instant;
 

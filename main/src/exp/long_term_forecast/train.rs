@@ -35,6 +35,10 @@ pub struct ExpConfig {
     pub seed: u64,
     #[arg(long, default_value_t = 1.0e-4)]
     pub learning_rate: f64,
+    #[arg(long, default_value_t = 1.0)]
+    pub loss_scale: f64,
+    #[arg(long, default_value_t = 2.0)]
+    pub loss_alpha: f64,
 }
 
 impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
