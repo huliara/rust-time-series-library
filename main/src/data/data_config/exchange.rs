@@ -27,7 +27,7 @@ pub struct ExchangeArgs {
 impl Default for ExchangeArgs {
     fn default() -> Self {
         Self {
-            path: "exchange/exchange.csv".to_string(),
+            path: "v2/USDJPY/h1/20020101-20250810.csv".to_string(),
             train_features: vec![
                 ExchangeColumnName::Open,
                 ExchangeColumnName::High,
