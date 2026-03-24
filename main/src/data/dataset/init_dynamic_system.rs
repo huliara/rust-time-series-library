@@ -7,7 +7,7 @@ use crate::{
 };
 
 use burn::prelude::Backend;
-pub trait InitDynamicSystem<C = ()>: InitTimeSeries {
+pub trait InitDynamicSystem: InitTimeSeries {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,

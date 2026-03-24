@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders, DynamicColumnName},
-        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        dynamic_system::config::{from_series, split_borders},
+        init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
@@ -43,7 +43,7 @@ impl InitTimeSeries for HenonMapConfig {
     }
 }
 
-impl InitDynamicSystem<DynamicColumnName> for HenonMapConfig {
+impl InitDynamicSystem for HenonMapConfig {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,
