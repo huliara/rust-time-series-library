@@ -23,6 +23,7 @@ dependencies = [
     "python-dotenv==1.0.0",
     "pywavelets==1.9.0",
     "reformer-pytorch==1.4.4",
+    "reservoirpy>=0.4.1",
     "scikit-learn==1.7.2",
     "scipy==1.16.3",
     "sktime==0.40.1",
