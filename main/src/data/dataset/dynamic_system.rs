@@ -1,0 +1,14 @@
+pub mod _kuramoto_sivashinsky;
+pub mod _kuramoto_sivashinsky_etdrk4;
+pub mod _mg_rk4;
+pub mod doublescroll;
+pub mod henon_map;
+pub mod kuramoto_sivashinsky;
+pub mod logistic_map;
+pub mod lorenz;
+pub mod lorenz96;
+pub mod mackey_glass;
+pub mod multiscroll;
+pub mod narma;
+pub mod rabinovich_fabrikant;
+pub mod rossler;

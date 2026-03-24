@@ -1,7 +1,5 @@
 pub mod activation;
 pub mod backend;
-pub mod column_name;
-pub mod data_config;
 pub mod exp;
 pub mod model_config;
 pub mod time_embed;

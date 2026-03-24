@@ -1,6 +1,13 @@
-use crate::args::{
-    column_name::{EtthColumnName, ExchangeColumnName},
-    time_embed::TimeEmbed,
+pub mod etth1;
+pub mod exchange;
+pub mod init_dataset;
+use crate::{
+    args::time_embed::TimeEmbed,
+    data::{
+        column_name::{EtthColumnName, ExchangeColumnName},
+        data_config::{etth1::Etth1Args, exchange::ExchangeArgs},
+        dataset::dynamic_system::lorenz96::DynamicSystemArgs,
+    },
 };
 use clap::{Args, Subcommand, ValueEnum};
 use core::fmt;
@@ -9,13 +16,13 @@ use std::fmt::{Debug, Display};
 
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum DataConfig {
-    ETTh1(DataCommand<EtthColumnName>),
-    Exchange(DataCommand<ExchangeColumnName>),
+    ETTh1(Etth1Args),
+    Exchange(ExchangeArgs),
 }
 
 impl Default for DataConfig {
     fn default() -> Self {
-        DataConfig::ETTh1(DataCommand::default())
+        DataConfig::ETTh1(Etth1Args::default())
     }
 }
 
@@ -32,21 +39,10 @@ impl DataConfig {
             DataConfig::Exchange(cmd) => cmd.to_string(),
         }
     }
-
-    pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
-        match self {
-            DataConfig::ETTh1(cmd) => cmd
-                .validate_feature_order()
-                .map_err(|msg| format!("DataConfig validation failed: {msg}")),
-            DataConfig::Exchange(cmd) => cmd
-                .validate_feature_order()
-                .map_err(|msg| format!("DataConfig validation failed: {msg}")),
-        }
-    }
 }
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct DataCommand<
+pub struct DataArgs<
     C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug,
 > {
     #[arg(long)]
@@ -61,8 +57,7 @@ pub struct DataCommand<
     pub embed: TimeEmbed,
 }
 
-impl<C> DataCommand<C>
-where
+impl<C> DataArgs<C> where
     C: Clone
         + std::marker::Send
         + std::marker::Sync
@@ -70,22 +65,11 @@ where
         + ValueEnum
         + Display
         + PartialEq
-        + Debug,
+        + Debug
 {
-    pub fn validate_feature_order(&self) -> Result<(), String> {
-        if self.targets != self.train_features[..self.targets.len()] {
-            return Err(format!(
-                "Targets {:?} do not match the first train features {:?}. Ensure that the order of train features' head is the same as the target features .",
-                self.targets,
-                self.train_features[..self.targets.len()].to_vec()
-            ));
-        }
-
-        Ok(())
-    }
 }
 
-impl Default for DataCommand<EtthColumnName> {
+impl Default for DataArgs<EtthColumnName> {
     fn default() -> Self {
         Self {
             path: "ETT/ETTh1.csv".to_string(),
@@ -113,7 +97,7 @@ impl Default for DataCommand<EtthColumnName> {
 }
 
 impl<C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug>
-    fmt::Display for DataCommand<C>
+    fmt::Display for DataArgs<C>
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

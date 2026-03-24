@@ -1,8 +1,11 @@
-use burn::prelude::Backend;
+use burn::{data, prelude::Backend};
 
 use crate::{
-    args::{data_config::DataConfig, time_lengths::TimeLengths},
-    data::dataset::time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    args::time_lengths::TimeLengths,
+    data::{
+        data_config::{init_dataset::InitDataset, DataConfig},
+        dataset::time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    },
 };
 
 pub fn get_dataset<B: Backend>(
@@ -12,11 +15,7 @@ pub fn get_dataset<B: Backend>(
     device: &B::Device,
 ) -> TimeSeriesDataset<B> {
     match data_config {
-        DataConfig::ETTh1(ref data_command) => {
-            TimeSeriesDataset::<B>::new(data_config, data_command, lengths, flag, device)
-        }
-        DataConfig::Exchange(ref data_command) => {
-            TimeSeriesDataset::<B>::new(data_config, data_command, lengths, flag, device)
-        }
+        DataConfig::ETTh1(ref data_command) => data_command.init_dataset(lengths, flag, device),
+        DataConfig::Exchange(ref data_command) => data_command.init_dataset(lengths, flag, device),
     }
 }

@@ -1,9 +1,5 @@
 use super::util::*;
-use crate::args::{
-    data_config::{DataCommand, DataConfig},
-    time_embed::TimeEmbed,
-    time_lengths::TimeLengths,
-};
+use crate::args::{time_embed::TimeEmbed, time_lengths::TimeLengths};
 use burn::{
     data::dataset::Dataset,
     tensor::{backend::Backend, Tensor, TensorData},
@@ -26,37 +22,6 @@ pub struct TimeSeriesItem<B: Backend> {
     pub seq_y_mark: Tensor<B, 2>,
 }
 
-#[derive(Clone, Debug)]
-pub struct StandardScaler {
-    pub mean: Array1<f64>,
-    pub scale: Array1<f64>,
-}
-
-impl StandardScaler {
-    pub fn new() -> Self {
-        Self {
-            mean: Array1::zeros(0),
-            scale: Array1::zeros(0),
-        }
-    }
-
-    pub fn fit(&mut self, data: &Array2<f64>) {
-        self.mean = data.mean_axis(Axis(0)).expect("Mean axis 0 failed");
-        // Using ddof=0 for consistency with sklearn's StandardScaler which uses biased estimator by default
-        self.scale = data.std_axis(Axis(0), 0.0);
-        // Avoid division by zero
-        self.scale.mapv_inplace(|x| if x == 0.0 { 1.0 } else { x });
-    }
-
-    pub fn transform(&self, data: &Array2<f64>) -> Array2<f64> {
-        (data - &self.mean) / &self.scale
-    }
-
-    pub fn _inverse_transform(&self, data: &Array2<f64>) -> Array2<f64> {
-        (data * &self.scale) + &self.mean
-    }
-}
-
 pub struct TimeSeriesDataset<B: Backend> {
     pub data_x: Tensor<B, 2>,
     pub data_y: Tensor<B, 2>,
@@ -71,236 +36,6 @@ pub enum ExpFlag {
     Train,
     Val,
     Test,
-}
-
-impl<B: Backend> TimeSeriesDataset<B> {
-    fn parse_dates(
-        df: &DataFrame,
-        data_config: &DataConfig,
-        start_idx: usize,
-        slice_len: usize,
-    ) -> Vec<NaiveDateTime> {
-        match data_config {
-            DataConfig::ETTh1(_) => df
-                .slice(start_idx as i64, slice_len)
-                .column("date")
-                .unwrap()
-                .str()
-                .unwrap()
-                .into_no_null_iter()
-                .map(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").expect("Parse date"))
-                .collect(),
-            DataConfig::Exchange(_) => df
-                .slice(start_idx as i64, slice_len)
-                .column("time")
-                .unwrap()
-                .i64()
-                .unwrap()
-                .into_no_null_iter()
-                .map(|s| {
-                    DateTime::from_timestamp(s, 0)
-                        .expect("Parse date")
-                        .naive_utc()
-                })
-                .collect(),
-        }
-    }
-
-    pub fn new(
-        data_config: &DataConfig,
-        data_command: &DataCommand<
-            impl std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug,
-        >,
-        lengths: &TimeLengths,
-        flag: ExpFlag,
-        device: &B::Device,
-    ) -> Self {
-        // Default size
-
-        let path = PathBuf::from(get_dataset_path(data_command.path.clone()));
-        let df = CsvReadOptions::default()
-            .with_has_header(true)
-            .try_into_reader_with_file_path(Some(path))
-            .expect("Failed to read CSV file")
-            .finish();
-
-        match df {
-            Ok(df) => {
-                let train_features = data_command
-                    .train_features
-                    .clone()
-                    .iter()
-                    .map(|f| col(f.to_string()))
-                    .collect::<Vec<_>>();
-                let target_features = data_command
-                    .targets
-                    .clone()
-                    .iter()
-                    .map(|t| col(t.to_string()))
-                    .collect::<Vec<_>>();
-
-                let data_x_array: Array2<f64> = df
-                    .clone()
-                    .lazy()
-                    .select(train_features)
-                    .collect()
-                    .unwrap()
-                    .to_ndarray::<Float64Type>(IndexOrder::C)
-                    .unwrap()
-                    .into_dimensionality::<ndarray::Ix2>()
-                    .unwrap();
-                let data_y_array = df
-                    .clone()
-                    .lazy()
-                    .select(target_features)
-                    .collect()
-                    .unwrap()
-                    .to_ndarray::<Float64Type>(IndexOrder::C)
-                    .unwrap()
-                    .into_dimensionality::<ndarray::Ix2>()
-                    .unwrap();
-
-                if data_x_array.is_empty() || data_y_array.is_empty() {
-                    panic!(
-                        "Data arrays cannot be empty. Please check the CSV file and column names."
-                    );
-                }
-
-                let total_rows = data_x_array.nrows();
-                let num_train = (total_rows as f64 * 0.7) as usize;
-                let num_test = (total_rows as f64 * 0.2) as usize;
-                let num_val = total_rows - num_train - num_test;
-
-                let raw_border1s = match data_config {
-                    DataConfig::ETTh1(_) => (
-                        0,
-                        (12usize * 30 * 24).saturating_sub(lengths.seq_len),
-                        (12usize * 30 * 24 + 4 * 30 * 24).saturating_sub(lengths.seq_len),
-                    ),
-                    DataConfig::Exchange(_) => (
-                        0,
-                        num_train.saturating_sub(lengths.seq_len),
-                        total_rows.saturating_sub(num_test.saturating_add(lengths.seq_len)),
-                    ),
-                };
-                let raw_border2s: (usize, usize, usize) = match data_config {
-                    DataConfig::ETTh1(_) => (
-                        12 * 30 * 24,
-                        12 * 30 * 24 + 4 * 30 * 24,
-                        12 * 30 * 24 + 8 * 30 * 24,
-                    ),
-                    DataConfig::Exchange(_) => (num_train, num_train + num_val, total_rows),
-                };
-
-                let clamp_idx = |idx: usize| idx.min(total_rows);
-                let border1s = (
-                    clamp_idx(raw_border1s.0),
-                    clamp_idx(raw_border1s.1),
-                    clamp_idx(raw_border1s.2),
-                );
-                let border2s = (
-                    clamp_idx(raw_border2s.0),
-                    clamp_idx(raw_border2s.1),
-                    clamp_idx(raw_border2s.2),
-                );
-
-                if border2s.0 <= border1s.0 {
-                    panic!(
-                        "Invalid train split range: start={}, end={}, total_rows={}",
-                        border1s.0, border2s.0, total_rows
-                    );
-                }
-
-                let (start_idx, end_idx) = match flag {
-                    ExpFlag::Train => (border1s.0, border2s.0),
-                    ExpFlag::Val => (border1s.1, border2s.1),
-                    ExpFlag::Test => (border1s.2, border2s.2),
-                };
-
-                let mut scaler = StandardScaler::new();
-                let train_data_sliced = data_x_array
-                    .slice(s![border1s.0..border2s.0, ..])
-                    .to_owned();
-                scaler.fit(&train_data_sliced);
-
-                let data_x_array = scaler.transform(&data_x_array);
-
-                let mut target_scaler = StandardScaler::new();
-                let target_data_sliced = data_y_array
-                    .slice(s![border1s.0..border2s.0, ..])
-                    .to_owned();
-                target_scaler.fit(&target_data_sliced);
-
-                let data_y_array = target_scaler.transform(&data_y_array);
-
-                let slice_len = end_idx.saturating_sub(start_idx);
-
-                let data_stamp_array: Array2<f64> = match data_command.embed {
-                    TimeEmbed::Fixed => {
-                        let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, data_config, start_idx, slice_len);
-                        let month: Vec<f64> = dates.iter().map(|d| d.month() as f64).collect();
-                        let day: Vec<f64> = dates.iter().map(|d| d.day() as f64).collect();
-                        let weekday: Vec<f64> = dates
-                            .iter()
-                            .map(|d| d.weekday().number_from_monday() as f64 - 1.0)
-                            .collect();
-                        let hour: Vec<f64> = dates.iter().map(|d| d.hour() as f64).collect();
-
-                        let month_series = Column::new("month".into(), month);
-                        let day_series = Column::new("day".into(), day);
-                        let weekday_series = Column::new("weekday".into(), weekday);
-                        let hour_series = Column::new("hour".into(), hour);
-
-                        DataFrame::new(vec![month_series, day_series, weekday_series, hour_series])
-                            .unwrap()
-                            .to_ndarray::<Float64Type>(IndexOrder::C)
-                            .unwrap()
-                            .into_dimensionality::<ndarray::Ix2>()
-                            .unwrap()
-                    }
-                    TimeEmbed::TimeF => {
-                        let dates: Vec<NaiveDateTime> =
-                            Self::parse_dates(&df, data_config, start_idx, slice_len);
-                        time_features(&dates, "h")
-                    }
-                };
-
-                let data_x_array = data_x_array.slice(s![start_idx..end_idx, ..]).to_owned();
-                let data_y_array = data_y_array.slice(s![start_idx..end_idx, ..]).to_owned();
-
-                let shape_x = data_x_array.shape().to_vec();
-                let data_x = Tensor::from_data(
-                    TensorData::new(data_x_array.into_raw_vec_and_offset().0, shape_x),
-                    device,
-                );
-
-                let shape_y = data_y_array.shape().to_vec();
-                let data_y = Tensor::from_data(
-                    TensorData::new(data_y_array.into_raw_vec_and_offset().0, shape_y),
-                    device,
-                );
-
-                let shape_stamp = data_stamp_array.shape().to_vec();
-                let data_stamp = Tensor::from_data(
-                    TensorData::new(data_stamp_array.into_raw_vec_and_offset().0, shape_stamp),
-                    device,
-                );
-
-                Self {
-                    data_x,
-                    data_y,
-                    data_stamp,
-                    seq_len: lengths.seq_len,
-                    label_len: lengths.label_len,
-                    pred_len: lengths.pred_len,
-                }
-            }
-            Err(e) => {
-                panic!("Error reading CSV file: {:?}", e);
-            }
-        }
-    }
 }
 
 impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
@@ -343,13 +78,11 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
 #[cfg(test)]
 mod tests {
     use crate::args::time_lengths::TimeLengths;
+    use crate::data::data_config::DataConfig;
     use crate::data::dataset::get_dataset::get_dataset;
     use crate::data::dataset::time_series_dataset::ExpFlag;
+    use crate::test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val;
     use crate::test_utils::test_py::execute_dataset_test;
-    use crate::{
-        args::data_config::DataConfig,
-        test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val,
-    };
     use burn::tensor::TensorData;
     #[test]
     fn test_time_series_dataset() {
