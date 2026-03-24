@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::args::time_lengths::TimeLengths;
 
-use crate::args::data::DataConfig;
+use crate::args::data::DataCommand;
 use crate::data::dataset::get_dataset::get_dataset;
 use crate::data::{
     batcher::{TimeSeriesBatch, TimeSeriesBatcher},
@@ -14,7 +14,7 @@ use burn::{
 };
 
 pub fn create_data_loader<B: Backend>(
-    data_config: &DataConfig,
+    data_config: &DataCommand,
     lengths: &TimeLengths,
     batch_size: usize,
     num_workers: usize,
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn test_create_dataloader() {
         type B = Wgpu;
-        let data_config = DataConfig::default();
+        let data_config = DataCommand::default();
         let lengths = TimeLengths::default();
         let batch_size = 32;
         let num_workers = 0;

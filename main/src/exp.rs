@@ -4,7 +4,7 @@ use burn::tensor::backend::AutodiffBackend;
 use std::time::Instant;
 
 use crate::{
-    args::{data::DataConfig, model::ModelConfig, time_lengths::TimeLengths, RootArgs},
+    args::{data::DataCommand, model::ModelConfig, time_lengths::TimeLengths, RootArgs},
     exp::long_term_forecast::train::ExpConfig,
 };
 
@@ -56,7 +56,7 @@ pub(crate) trait Train<B: AutodiffBackend> {
         result_path: &str,
         exp_config: ExpConfig,
         model_config: ModelConfig,
-        data_config: DataConfig,
+        data_config: DataCommand,
         lengths: TimeLengths,
         device: B::Device,
     );
@@ -69,7 +69,7 @@ pub(crate) trait Infer<B: AutodiffBackend> {
         exp_config: ExpConfig,
         model_config: ModelConfig,
         lengths: TimeLengths,
-        data_config: DataConfig,
+        data_config: DataCommand,
         device: B::Device,
     );
 }

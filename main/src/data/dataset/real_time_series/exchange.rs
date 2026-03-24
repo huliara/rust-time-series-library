@@ -11,7 +11,7 @@ use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct ExchangeArgs {
+pub struct ExchangeConfig {
     #[arg(long)]
     pub path: String,
     #[arg(long, num_args = 1..)]
@@ -24,7 +24,7 @@ pub struct ExchangeArgs {
     pub embed: TimeEmbed,
 }
 
-impl Default for ExchangeArgs {
+impl Default for ExchangeConfig {
     fn default() -> Self {
         Self {
             path: "v2/USDJPY/h1/20020101-20250810.csv".to_string(),
@@ -51,7 +51,7 @@ impl Default for ExchangeArgs {
     }
 }
 
-impl fmt::Display for ExchangeArgs {
+impl fmt::Display for ExchangeConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let targets = self
             .targets
@@ -70,7 +70,7 @@ impl fmt::Display for ExchangeArgs {
     }
 }
 
-impl InitDataset<ExchangeColumnName> for ExchangeArgs {
+impl InitDataset<ExchangeColumnName> for ExchangeConfig {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("time")

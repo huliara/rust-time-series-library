@@ -1,5 +1,5 @@
 use crate::{
-    args::{data::DataConfig, model::ModelConfig, time_lengths::TimeLengths},
+    args::{data::DataCommand, model::ModelConfig, time_lengths::TimeLengths},
     data::{
         batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
@@ -59,7 +59,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
         result_path: &str,
         exp_config: ExpConfig,
         model_config: ModelConfig,
-        data_config: DataConfig,
+        data_config: DataCommand,
         lengths: TimeLengths,
         device: B::Device,
     ) where

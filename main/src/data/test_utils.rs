@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    args::{data::DataConfig, time_lengths::TimeLengths},
+    args::{data::DataCommand, time_lengths::TimeLengths},
     data::{
         batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
@@ -10,7 +10,7 @@ use crate::{
 use burn::{data::dataloader::DataLoader, tensor::backend::Backend};
 
 pub fn setup_test_dataloader<B: Backend>(
-    data_config: DataConfig,
+    data_config: DataCommand,
 ) -> Arc<dyn DataLoader<B, TimeSeriesBatch<B>>> {
     let lengths = TimeLengths::default();
     let batch_size = 32;

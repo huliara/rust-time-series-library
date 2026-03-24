@@ -11,7 +11,7 @@ use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct Etth1Args {
+pub struct Etth1Config {
     #[arg(long)]
     pub path: String,
     #[arg(long, num_args = 1..)]
@@ -24,7 +24,7 @@ pub struct Etth1Args {
     pub embed: TimeEmbed,
 }
 
-impl Default for Etth1Args {
+impl Default for Etth1Config {
     fn default() -> Self {
         Self {
             path: "ETT/ETTh1.csv".to_string(),
@@ -51,7 +51,7 @@ impl Default for Etth1Args {
     }
 }
 
-impl fmt::Display for Etth1Args {
+impl fmt::Display for Etth1Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let targets = self
             .targets
@@ -70,7 +70,7 @@ impl fmt::Display for Etth1Args {
     }
 }
 
-impl InitDataset<EtthColumnName> for Etth1Args {
+impl InitDataset<EtthColumnName> for Etth1Config {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("date")

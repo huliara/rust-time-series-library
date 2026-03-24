@@ -66,7 +66,7 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::args::data::DataConfig;
+    use crate::args::data::DataCommand;
     use crate::args::time_lengths::TimeLengths;
     use crate::data::dataset::get_dataset::get_dataset;
     use crate::data::dataset::time_series_dataset::ExpFlag;
@@ -78,7 +78,7 @@ mod tests {
         type B = burn::backend::wgpu::Wgpu;
         let py_dataset_result = execute_dataset_test().unwrap();
         let device = Default::default();
-        let data_config = DataConfig::default();
+        let data_config = DataCommand::default();
         let lengths = TimeLengths::default();
 
         let rust_dataset = get_dataset::<B>(&data_config, &lengths, ExpFlag::Test, &device);
