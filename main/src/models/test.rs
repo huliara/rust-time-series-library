@@ -1,6 +1,6 @@
 use crate::data::column_name::EtthColumnName;
-use crate::data::data_config::etth1::Etth1Args;
 use crate::data::data_config::DataConfig;
+use crate::data::dataset::real_time_series::etth1::Etth1Args;
 use crate::data::test_utils::setup_test_dataloader;
 use crate::models::traits::Forecast;
 use crate::test_utils::{

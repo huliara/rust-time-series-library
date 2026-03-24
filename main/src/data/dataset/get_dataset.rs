@@ -3,8 +3,12 @@ use burn::prelude::Backend;
 use crate::{
     args::time_lengths::TimeLengths,
     data::{
-        data_config::{etth1::Etth1Args, exchange::ExchangeArgs, init_dataset::InitDataset, DataConfig},
-        dataset::time_series_dataset::{ExpFlag, TimeSeriesDataset},
+        data_config::DataConfig,
+        dataset::{
+            init_dataset::InitDataset,
+            real_time_series::{etth1::Etth1Args, exchange::ExchangeArgs},
+            time_series_dataset::{ExpFlag, TimeSeriesDataset},
+        },
     },
 };
 

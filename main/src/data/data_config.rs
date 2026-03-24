@@ -1,10 +1,8 @@
-pub mod etth1;
-pub mod exchange;
-pub mod init_dataset;
-use crate::data::data_config::{etth1::Etth1Args, exchange::ExchangeArgs};
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+use crate::data::dataset::real_time_series::{etth1::Etth1Args, exchange::ExchangeArgs};
 
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum DataConfig {

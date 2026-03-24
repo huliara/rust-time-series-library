@@ -1,6 +1,6 @@
 use crate::{
     args::{time_embed::TimeEmbed, time_lengths::TimeLengths},
-    data::{column_name::ExchangeColumnName, data_config::init_dataset::InitDataset},
+    data::{column_name::ExchangeColumnName, dataset::init_dataset::InitDataset},
 };
 
 use chrono::{DateTime, NaiveDateTime};
