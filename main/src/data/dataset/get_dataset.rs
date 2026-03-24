@@ -1,14 +1,11 @@
 use burn::prelude::Backend;
 
 use crate::{
-    args::time_lengths::TimeLengths,
-    data::{
-        data_config::DataConfig,
-        dataset::{
-            init_dataset::InitDataset,
-            real_time_series::{etth1::Etth1Args, exchange::ExchangeArgs},
-            time_series_dataset::{ExpFlag, TimeSeriesDataset},
-        },
+    args::{data::DataConfig, time_lengths::TimeLengths},
+    data::dataset::{
+        init_dataset::InitDataset,
+        real_time_series::{etth1::Etth1Args, exchange::ExchangeArgs},
+        time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
 

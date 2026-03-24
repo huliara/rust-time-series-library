@@ -66,8 +66,8 @@ impl<B: Backend> Dataset<TimeSeriesItem<B>> for TimeSeriesDataset<B> {
 }
 #[cfg(test)]
 mod tests {
+    use crate::args::data::DataConfig;
     use crate::args::time_lengths::TimeLengths;
-    use crate::data::data_config::DataConfig;
     use crate::data::dataset::get_dataset::get_dataset;
     use crate::data::dataset::time_series_dataset::ExpFlag;
     use crate::test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val;

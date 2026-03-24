@@ -4,10 +4,7 @@ use burn::tensor::backend::AutodiffBackend;
 use std::time::Instant;
 
 use crate::{
-    args::{
-        model_config::ModelConfig, time_lengths::TimeLengths, RootArgs,
-    },
-    data::data_config::DataConfig,
+    args::{data::DataConfig, model::ModelConfig, time_lengths::TimeLengths, RootArgs},
     exp::long_term_forecast::train::ExpConfig,
 };
 

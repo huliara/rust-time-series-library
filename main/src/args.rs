@@ -1,13 +1,14 @@
 pub mod activation;
 pub mod backend;
+pub mod data;
 pub mod exp;
-pub mod model_config;
+pub mod model;
 pub mod time_embed;
 pub mod time_lengths;
 use self::exp::TaskName;
 use self::time_lengths::TimeLengths;
 use crate::{
-    args::{backend::Backend, model_config::ModelConfig},
+    args::{backend::Backend, model::ModelConfig},
     exp::long_term_forecast::train::ExpConfig,
 };
 use clap::Parser;

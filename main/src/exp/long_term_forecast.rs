@@ -5,7 +5,7 @@ mod save_results;
 pub mod train;
 mod train_step;
 use crate::{
-    args::{exp::TaskName, model_config::ModelConfig, time_lengths::TimeLengths},
+    args::{exp::TaskName, model::ModelConfig, time_lengths::TimeLengths},
     exp::Exp,
     models::{
         dlinear::{DLinear, DLinearConfig},

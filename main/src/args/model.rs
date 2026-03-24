@@ -1,5 +1,5 @@
 use crate::{
-    data::data_config::DataConfig,
+    args::data::DataConfig,
     models::{dlinear::DLinearArgs, patch_tst::PatchTSTArgs, time_xer::TimeXerArgs},
 };
 use clap::{Args, Subcommand};

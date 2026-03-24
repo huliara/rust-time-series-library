@@ -1,8 +1,7 @@
 use std::fs;
 
 use crate::{
-    args::{model_config::ModelConfig, time_lengths::TimeLengths},
-    data::data_config::DataConfig,
+    args::{data::DataConfig, model::ModelConfig, time_lengths::TimeLengths},
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{

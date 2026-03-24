@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    args::time_lengths::TimeLengths,
+    args::{data::DataConfig, time_lengths::TimeLengths},
     data::{
-        batcher::TimeSeriesBatch, data_config::DataConfig, data_loader::create_data_loader,
+        batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
     },
 };
