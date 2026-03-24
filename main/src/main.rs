@@ -16,10 +16,6 @@ use crate::exp::{long_term_forecast::ForecastModel, Exp};
 
 fn main() {
     let args = RootArgs::parse();
-    args.model_config
-        .data_config()
-        .validate_targets_match_first_train_feature()
-        .expect("Invalid DataConfig");
 
     type Backend = Autodiff<Wgpu>;
     let device = Default::default();

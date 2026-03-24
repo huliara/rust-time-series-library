@@ -24,41 +24,6 @@ impl DataConfig {
         }
     }
 
-    pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
-        match self {
-            DataConfig::ETTh1(cmd) => {
-                Self::validate_target_prefix(&cmd.targets, &cmd.train_features, "ETTh1")
-            }
-            DataConfig::Exchange(cmd) => {
-                Self::validate_target_prefix(&cmd.targets, &cmd.train_features, "Exchange")
-            }
-        }
-    }
-
-    fn validate_target_prefix<C: PartialEq + Debug>(
-        targets: &[C],
-        train_features: &[C],
-        dataset_name: &str,
-    ) -> Result<(), String> {
-        if targets.len() > train_features.len() {
-            return Err(format!(
-                "{dataset_name}: targets length ({}) exceeds train_features length ({})",
-                targets.len(),
-                train_features.len()
-            ));
-        }
-
-        if targets != &train_features[..targets.len()] {
-            return Err(format!(
-                "{dataset_name}: targets {:?} do not match the first train features {:?}",
-                targets,
-                &train_features[..targets.len()]
-            ));
-        }
-
-        Ok(())
-    }
-
     pub fn inner_string(&self) -> String {
         match self {
             DataConfig::ETTh1(cmd) => cmd.to_string(),
