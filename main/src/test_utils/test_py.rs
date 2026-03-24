@@ -110,6 +110,35 @@ pub fn execute_dataset_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
     })
 }
 
+pub fn execute_dynamic_system_dataset_test(
+    system_name: &str,
+) -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
+    Python::attach(|py| {
+        let func = get_python_fnction(
+            py,
+            "_dynamic_system_dataset_test".to_string(),
+            "dynamic_system_dataset_test".to_string(),
+        );
+
+        let result = func.call1((system_name,))?;
+        let tuple_result = result.cast::<pyo3::types::PyTuple>()?;
+
+        let x_val = tuple_result.get_item(0)?;
+        let data_stamp = tuple_result.get_item(1)?;
+        let y_val = tuple_result.get_item(2)?;
+
+        let x_flat = x_val.call_method0("flatten")?.call_method0("tolist")?;
+        let data_stamp_flat = data_stamp.call_method0("flatten")?.call_method0("tolist")?;
+        let y_flat = y_val.call_method0("flatten")?.call_method0("tolist")?;
+
+        let x_vec: Vec<f32> = x_flat.extract()?;
+        let data_stamp_vec: Vec<f32> = data_stamp_flat.extract()?;
+        let y_vec: Vec<f32> = y_flat.extract()?;
+
+        Ok((x_vec, data_stamp_vec, y_vec))
+    })
+}
+
 pub fn execute_dataloader_test() -> PyResult<DataloaderTestOutput> {
     Python::attach(|py| {
         let func = get_python_fnction(
