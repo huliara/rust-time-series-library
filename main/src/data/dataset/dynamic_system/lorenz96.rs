@@ -1,7 +1,9 @@
 use clap::Args;
 use serde::{Deserialize, Serialize};
+
+use crate::data::dataset::init_dataset::InitDataset;
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct DynamicSystemArgs {
+pub struct Lorenz96Config {
     #[arg(long, default_value_t = 10000)]
     pub total_steps: usize,
     #[arg(long, default_value_t = 36)]
