@@ -1,5 +1,5 @@
-use chrono::NaiveDateTime;
 use burn::prelude::Backend;
+use chrono::NaiveDateTime;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -45,12 +45,20 @@ impl Default for Lorenz96Config {
 
 impl std::fmt::Display for Lorenz96Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "lorenz96_nt{}_dim{}_f{:.2}", self.total_steps, self.dimention, self.f)
+        write!(
+            f,
+            "lorenz96_nt{}_dim{}_f{:.2}",
+            self.total_steps, self.dimention, self.f
+        )
     }
 }
 
-impl InitDataset<DynamicColumnName> for Lorenz96Config {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+impl InitRealTimeSeries<DynamicColumnName> for Lorenz96Config {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }
 

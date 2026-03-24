@@ -9,7 +9,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -33,12 +33,20 @@ pub struct RosslerConfig {
 
 impl std::fmt::Display for RosslerConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "rossler_nt{}_a{:.2}_b{:.2}_c{:.2}", self.n_timesteps, self.a, self.b, self.c)
+        write!(
+            f,
+            "rossler_nt{}_a{:.2}_b{:.2}_c{:.2}",
+            self.n_timesteps, self.a, self.b, self.c
+        )
     }
 }
 
-impl InitDataset<DynamicColumnName> for RosslerConfig {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+impl InitRealTimeSeries<DynamicColumnName> for RosslerConfig {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }
 

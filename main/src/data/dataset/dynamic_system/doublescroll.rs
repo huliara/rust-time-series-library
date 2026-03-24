@@ -9,7 +9,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -37,12 +37,20 @@ pub struct DoubleScrollConfig {
 
 impl std::fmt::Display for DoubleScrollConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "doublescroll_nt{}_r1{:.2}_r2{:.2}", self.n_timesteps, self.r1, self.r2)
+        write!(
+            f,
+            "doublescroll_nt{}_r1{:.2}_r2{:.2}",
+            self.n_timesteps, self.r1, self.r2
+        )
     }
 }
 
-impl InitDataset<DynamicColumnName> for DoubleScrollConfig {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+impl InitRealTimeSeries<DynamicColumnName> for DoubleScrollConfig {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }
 

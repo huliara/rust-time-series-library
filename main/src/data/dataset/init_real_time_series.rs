@@ -6,6 +6,7 @@ use std::{
 use crate::{
     args::{time_embed::TimeEmbed, time_lengths::TimeLengths},
     data::dataset::{
+        init_time_series::InitTimeSeries,
         standard_scaler::StandardScaler,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
         util::time_features,
@@ -18,7 +19,7 @@ use lib::env_path::get_dataset_path;
 use ndarray::{s, Array2};
 use polars::prelude::*;
 
-pub trait InitDataset<
+pub trait InitRealTimeSeries<
     C: Clone
         + std::marker::Send
         + std::marker::Sync
@@ -27,13 +28,12 @@ pub trait InitDataset<
         + Display
         + Debug
         + PartialEq,
->
+>: InitTimeSeries
 {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime>;
     fn path(&self) -> String;
     fn train_columns(&self) -> Vec<C>;
     fn target_columns(&self) -> Vec<C>;
-    fn embed(&self) -> TimeEmbed;
 
     fn read_data(path: String) -> Result<DataFrame, PolarsError> {
         let path = PathBuf::from(get_dataset_path(path.clone()));
@@ -43,10 +43,6 @@ pub trait InitDataset<
             .expect("Failed to read CSV file")
             .finish()
     }
-    fn split_borders(
-        lengths: &TimeLengths,
-        total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize));
 
     fn init<B: Backend>(
         &self,

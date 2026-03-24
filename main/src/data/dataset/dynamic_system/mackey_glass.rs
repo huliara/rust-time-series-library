@@ -1,7 +1,7 @@
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use chrono::NaiveDateTime;
 use burn::prelude::Backend;
+use chrono::NaiveDateTime;
 use clap::Args;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -40,12 +40,20 @@ pub struct MackeyGlassConfig {
 
 impl std::fmt::Display for MackeyGlassConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "mackeyglass_nt{}_tau{}_a{:.2}_b{:.2}", self.n_timesteps, self.tau, self.a, self.b)
+        write!(
+            f,
+            "mackeyglass_nt{}_tau{}_a{:.2}_b{:.2}",
+            self.n_timesteps, self.tau, self.a, self.b
+        )
     }
 }
 
-impl InitDataset<DynamicColumnName> for MackeyGlassConfig {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+impl InitRealTimeSeries<DynamicColumnName> for MackeyGlassConfig {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }
 
@@ -114,7 +122,9 @@ pub fn mackey_glass(
         if history.len() < history_length {
             return Err(format!(
                 "The given history has length of {} < tau/h with tau={} and h={}",
-                history.len(), tau, h
+                history.len(),
+                tau,
+                h
             ));
         }
         history[history.len() - history_length..].to_vec()
@@ -142,8 +152,5 @@ pub fn mackey_glass(
         xt = _mg_rk4(xt, xtau, a, b, n as f64, h);
     }
 
-    Ok(x[history_length..]
-        .iter()
-        .map(|v| [*v])
-        .collect::<Vec<_>>())
+    Ok(x[history_length..].iter().map(|v| [*v]).collect::<Vec<_>>())
 }

@@ -1,7 +1,7 @@
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use chrono::NaiveDateTime;
 use burn::prelude::Backend;
+use chrono::NaiveDateTime;
 use clap::Args;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -40,8 +40,12 @@ impl std::fmt::Display for NarmaConfig {
     }
 }
 
-impl InitDataset<DynamicColumnName> for NarmaConfig {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+impl InitRealTimeSeries<DynamicColumnName> for NarmaConfig {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }
 
@@ -119,7 +123,8 @@ pub fn narma(
 
     for t in order..(n_timesteps + order - 1) {
         let sum_hist = y[t - order..t].iter().map(|v| v[0]).sum::<f64>();
-        y[t + 1][0] = a1 * y[t][0] + a2 * y[t][0] * sum_hist + b * u_series[t - order] * u_series[t] + c;
+        y[t + 1][0] =
+            a1 * y[t][0] + a2 * y[t][0] * sum_hist + b * u_series[t - order] * u_series[t] + c;
     }
 
     let u_out = u_series.into_iter().map(|v| [v]).collect::<Vec<_>>();

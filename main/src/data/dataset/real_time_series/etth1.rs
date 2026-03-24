@@ -1,6 +1,9 @@
 use crate::{
     args::{time_embed::TimeEmbed, time_lengths::TimeLengths},
-    data::{column_name::EtthColumnName, dataset::init_dataset::InitDataset},
+    data::{
+        column_name::EtthColumnName,
+        dataset::{init_real_time_series::InitRealTimeSeries, init_time_series::InitTimeSeries},
+    },
 };
 
 use chrono::NaiveDateTime;
@@ -70,7 +73,30 @@ impl fmt::Display for Etth1Config {
     }
 }
 
-impl InitDataset<EtthColumnName> for Etth1Config {
+impl InitTimeSeries for Etth1Config {
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        _total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        let raw_border1s = (
+            0,
+            (12usize * 30 * 24).saturating_sub(lengths.seq_len),
+            (12usize * 30 * 24 + 4 * 30 * 24).saturating_sub(lengths.seq_len),
+        );
+        let raw_border2s: (usize, usize, usize) = (
+            12 * 30 * 24,
+            12 * 30 * 24 + 4 * 30 * 24,
+            12 * 30 * 24 + 8 * 30 * 24,
+        );
+        (raw_border1s, raw_border2s)
+    }
+}
+
+impl InitRealTimeSeries<EtthColumnName> for Etth1Config {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("date")
@@ -92,26 +118,5 @@ impl InitDataset<EtthColumnName> for Etth1Config {
 
     fn target_columns(&self) -> Vec<EtthColumnName> {
         self.targets.clone()
-    }
-
-    fn embed(&self) -> TimeEmbed {
-        self.embed.clone()
-    }
-
-    fn split_borders(
-        lengths: &TimeLengths,
-        _total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize)) {
-        let raw_border1s = (
-            0,
-            (12usize * 30 * 24).saturating_sub(lengths.seq_len),
-            (12usize * 30 * 24 + 4 * 30 * 24).saturating_sub(lengths.seq_len),
-        );
-        let raw_border2s: (usize, usize, usize) = (
-            12 * 30 * 24,
-            12 * 30 * 24 + 4 * 30 * 24,
-            12 * 30 * 24 + 8 * 30 * 24,
-        );
-        (raw_border1s, raw_border2s)
     }
 }

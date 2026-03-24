@@ -11,7 +11,7 @@ use crate::{
             default_columns, default_embed, default_parse_dates, default_path, from_series,
             split_borders, DynamicColumnName,
         },
-        init_dataset::InitDataset,
+        init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -38,7 +38,7 @@ impl std::fmt::Display for KuramotoSivashinskyConfig {
     }
 }
 
-impl InitDataset<DynamicColumnName> for KuramotoSivashinskyConfig {
+impl InitRealTimeSeries<DynamicColumnName> for KuramotoSivashinskyConfig {
     fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         default_parse_dates(start_idx, slice_len)
     }

@@ -1,6 +1,9 @@
 use crate::{
     args::{time_embed::TimeEmbed, time_lengths::TimeLengths},
-    data::{column_name::ExchangeColumnName, dataset::init_dataset::InitDataset},
+    data::{
+        column_name::ExchangeColumnName,
+        dataset::{init_real_time_series::InitRealTimeSeries, init_time_series::InitTimeSeries},
+    },
 };
 
 use chrono::{DateTime, NaiveDateTime};
@@ -70,7 +73,31 @@ impl fmt::Display for ExchangeConfig {
     }
 }
 
-impl InitDataset<ExchangeColumnName> for ExchangeConfig {
+impl InitTimeSeries for ExchangeConfig {
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        let num_train = (total_rows as f64 * 0.7) as usize;
+        let num_test = (total_rows as f64 * 0.2) as usize;
+        let num_val = total_rows - num_train - num_test;
+
+        let raw_border1s = (
+            0,
+            num_train.saturating_sub(lengths.seq_len),
+            total_rows.saturating_sub(num_test.saturating_add(lengths.seq_len)),
+        );
+        let raw_border2s: (usize, usize, usize) = (num_train, num_train + num_val, total_rows);
+
+        (raw_border1s, raw_border2s)
+    }
+}
+
+impl InitRealTimeSeries<ExchangeColumnName> for ExchangeConfig {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("time")
@@ -96,27 +123,5 @@ impl InitDataset<ExchangeColumnName> for ExchangeConfig {
 
     fn target_columns(&self) -> Vec<ExchangeColumnName> {
         self.targets.clone()
-    }
-
-    fn embed(&self) -> TimeEmbed {
-        self.embed.clone()
-    }
-
-    fn split_borders(
-        lengths: &TimeLengths,
-        total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize)) {
-        let num_train = (total_rows as f64 * 0.7) as usize;
-        let num_test = (total_rows as f64 * 0.2) as usize;
-        let num_val = total_rows - num_train - num_test;
-
-        let raw_border1s = (
-            0,
-            num_train.saturating_sub(lengths.seq_len),
-            total_rows.saturating_sub(num_test.saturating_add(lengths.seq_len)),
-        );
-        let raw_border2s: (usize, usize, usize) = (num_train, num_train + num_val, total_rows);
-
-        (raw_border1s, raw_border2s)
     }
 }
