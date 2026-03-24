@@ -1,5 +1,4 @@
 use burn::prelude::Backend;
-use chrono::NaiveDateTime;
 use clap::Args;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
@@ -7,11 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{
-            default_columns, default_embed, default_parse_dates, default_path, from_series,
-            split_borders, DynamicColumnName,
-        },
-        init_real_time_series::InitRealTimeSeries,
+        dynamic_system::config::{from_series, split_borders, DynamicColumnName},
+        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -40,38 +37,16 @@ impl std::fmt::Display for NarmaConfig {
     }
 }
 
-impl InitRealTimeSeries<DynamicColumnName> for NarmaConfig {
-    fn parse_dates(
-        _df: &polars::prelude::DataFrame,
-        start_idx: usize,
-        slice_len: usize,
-    ) -> Vec<NaiveDateTime> {
-        default_parse_dates(start_idx, slice_len)
-    }
-
-    fn path(&self) -> String {
-        default_path()
-    }
-
-    fn train_columns(&self) -> Vec<DynamicColumnName> {
-        default_columns()
-    }
-
-    fn target_columns(&self) -> Vec<DynamicColumnName> {
-        default_columns()
-    }
-
-    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
-        default_embed()
-    }
-
+impl InitTimeSeries for NarmaConfig {
     fn split_borders(
         lengths: &TimeLengths,
         total_rows: usize,
     ) -> ((usize, usize, usize), (usize, usize, usize)) {
         split_borders(lengths, total_rows)
     }
+}
 
+impl InitDynamicSystem<DynamicColumnName> for NarmaConfig {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,

@@ -11,17 +11,7 @@ use crate::{
 use burn::prelude::Backend;
 use clap::ValueEnum;
 
-pub trait InitRealTimeSeries<
-    C: Clone
-        + std::marker::Send
-        + std::marker::Sync
-        + 'static
-        + ValueEnum
-        + Display
-        + Debug
-        + PartialEq,
->: InitTimeSeries
-{
+pub trait InitDynamicSystem: InitTimeSeries {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,

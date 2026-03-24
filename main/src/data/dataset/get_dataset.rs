@@ -3,6 +3,7 @@ use burn::prelude::Backend;
 use crate::{
     args::{data::DataCommand, time_lengths::TimeLengths},
     data::dataset::{
+        init_dynamic_system::InitDynamicSystem,
         init_real_time_series::InitRealTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },

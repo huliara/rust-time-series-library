@@ -1,15 +1,12 @@
-use chrono::NaiveDateTime;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{
-            default_columns, default_embed, default_parse_dates, default_path, from_series,
-            split_borders, DynamicColumnName,
-        },
-        init_real_time_series::InitRealTimeSeries,
+        dynamic_system::config::{from_series, split_borders, DynamicColumnName},
+        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -33,38 +30,24 @@ pub struct MultiScrollConfig {
 
 impl std::fmt::Display for MultiScrollConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "multiscroll_nt{}_a{:.2}_b{:.2}_c{:.2}", self.n_timesteps, self.a, self.b, self.c)
+        write!(
+            f,
+            "multiscroll_nt{}_a{:.2}_b{:.2}_c{:.2}",
+            self.n_timesteps, self.a, self.b, self.c
+        )
     }
 }
 
-impl InitRealTimeSeries<DynamicColumnName> for MultiScrollConfig {
-    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
-        default_parse_dates(start_idx, slice_len)
-    }
-
-    fn path(&self) -> String {
-        default_path()
-    }
-
-    fn train_columns(&self) -> Vec<DynamicColumnName> {
-        default_columns()
-    }
-
-    fn target_columns(&self) -> Vec<DynamicColumnName> {
-        default_columns()
-    }
-
-    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
-        default_embed()
-    }
-
+impl InitTimeSeries for MultiScrollConfig {
     fn split_borders(
         lengths: &TimeLengths,
         total_rows: usize,
     ) -> ((usize, usize, usize), (usize, usize, usize)) {
         split_borders(lengths, total_rows)
     }
+}
 
+impl InitDynamicSystem<DynamicColumnName> for MultiScrollConfig {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,
@@ -128,7 +111,14 @@ fn rk4_step(state: [f64; 3], dt: f64, a: f64, b: f64, c: f64) -> [f64; 3] {
     ]
 }
 
-pub fn multiscroll(n_timesteps: usize, a: f64, b: f64, c: f64, x0: [f64; 3], h: f64) -> Vec<[f64; 3]> {
+pub fn multiscroll(
+    n_timesteps: usize,
+    a: f64,
+    b: f64,
+    c: f64,
+    x0: [f64; 3],
+    h: f64,
+) -> Vec<[f64; 3]> {
     if n_timesteps == 0 {
         return Vec::new();
     }
