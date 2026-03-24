@@ -1,5 +1,3 @@
-use std::fmt::{Debug, Display};
-
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
@@ -9,9 +7,7 @@ use crate::{
 };
 
 use burn::prelude::Backend;
-use clap::ValueEnum;
-
-pub trait InitDynamicSystem: InitTimeSeries {
+pub trait InitDynamicSystem<C = ()>: InitTimeSeries {
     fn init<B: Backend>(
         &self,
         lengths: &TimeLengths,
