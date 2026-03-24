@@ -29,17 +29,6 @@ pub trait InitDataset<
         + PartialEq,
 >
 {
-    fn validate_feature_order(targets: Vec<C>, train_features: Vec<C>) -> Result<(), String> {
-        if targets != train_features[..targets.len()] {
-            return Err(format!(
-                "Targets {:?} do not match the first train features {:?}. Ensure that the order of train features' head is the same as the target features .",
-                targets,
-                train_features[..targets.len()].to_vec()
-            ));
-        }
-
-        Ok(())
-    }
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime>;
     fn read_data(path: String) -> Result<DataFrame, PolarsError> {
         let path = PathBuf::from(get_dataset_path(path.clone()));
@@ -63,10 +52,6 @@ pub trait InitDataset<
         flag: ExpFlag,
         device: &B::Device,
     ) -> TimeSeriesDataset<B> {
-        if let Err(msg) = Self::validate_feature_order(target_columns.clone(), train_columns.clone())
-        {
-            panic!("DataConfig validation failed: {msg}");
-        }
         let df = Self::read_data(path.clone());
         match df {
             Ok(df) => {
