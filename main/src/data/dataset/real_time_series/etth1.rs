@@ -81,6 +81,23 @@ impl InitDataset<EtthColumnName> for Etth1Config {
             .map(|s| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").expect("Parse date"))
             .collect()
     }
+
+    fn path(&self) -> String {
+        self.path.clone()
+    }
+
+    fn train_columns(&self) -> Vec<EtthColumnName> {
+        self.train_features.clone()
+    }
+
+    fn target_columns(&self) -> Vec<EtthColumnName> {
+        self.targets.clone()
+    }
+
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
+
     fn split_borders(
         lengths: &TimeLengths,
         _total_rows: usize,

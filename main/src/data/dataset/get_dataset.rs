@@ -4,7 +4,6 @@ use crate::{
     args::{data::DataCommand, time_lengths::TimeLengths},
     data::dataset::{
         init_dataset::InitDataset,
-        real_time_series::{etth1::Etth1Config, exchange::ExchangeConfig},
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
@@ -16,23 +15,22 @@ pub fn get_dataset<B: Backend>(
     device: &B::Device,
 ) -> TimeSeriesDataset<B> {
     match data_config {
-        DataCommand::ETTh1(data_command) => Etth1Config::init::<B>(
-            data_command.path.clone(),
-            data_command.train_features.clone(),
-            data_command.targets.clone(),
-            data_command.embed.clone(),
-            lengths,
-            flag,
-            device,
-        ),
-        DataCommand::Exchange(data_command) => ExchangeConfig::init::<B>(
-            data_command.path.clone(),
-            data_command.train_features.clone(),
-            data_command.targets.clone(),
-            data_command.embed.clone(),
-            lengths,
-            flag,
-            device,
-        ),
+        DataCommand::ETTh1(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::Exchange(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::LogisticMap(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::HenonMap(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::Lorenz(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::Lorenz96(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::Rossler(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::DoubleScroll(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::MultiScroll(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::RabinovichFabrikant(data_command) => {
+            data_command.init::<B>(lengths, flag, device)
+        }
+        DataCommand::MackeyGlass(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::Narma(data_command) => data_command.init::<B>(lengths, flag, device),
+        DataCommand::KuramotoSivashinsky(data_command) => {
+            data_command.init::<B>(lengths, flag, device)
+        }
     }
 }

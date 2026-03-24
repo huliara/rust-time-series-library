@@ -1,3 +1,104 @@
+use chrono::NaiveDateTime;
+use clap::Args;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    args::time_lengths::TimeLengths,
+    data::dataset::{
+        dynamic_system::config::{
+            default_columns, default_embed, default_parse_dates, default_path, from_series,
+            split_borders, DynamicColumnName,
+        },
+        init_dataset::InitDataset,
+        time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    },
+};
+use burn::prelude::Backend;
+
+#[derive(Args, Debug, Clone, Deserialize, Serialize)]
+pub struct DoubleScrollConfig {
+    #[arg(long, default_value_t = 10000)]
+    pub n_timesteps: usize,
+    #[arg(long, default_value_t = 1.2)]
+    pub r1: f64,
+    #[arg(long, default_value_t = 3.44)]
+    pub r2: f64,
+    #[arg(long, default_value_t = 0.193)]
+    pub r4: f64,
+    #[arg(long, default_value_t = 2.25)]
+    pub ir: f64,
+    #[arg(long, default_value_t = 11.6)]
+    pub beta: f64,
+    #[arg(long, default_value_t = 0.01)]
+    pub h: f64,
+    #[arg(long, num_args = 3, default_values_t = [0.1, 0.0, 0.0])]
+    pub initial_value: Vec<f64>,
+}
+
+impl std::fmt::Display for DoubleScrollConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "doublescroll_nt{}_r1{:.2}_r2{:.2}", self.n_timesteps, self.r1, self.r2)
+    }
+}
+
+impl InitDataset<DynamicColumnName> for DoubleScrollConfig {
+    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+        default_parse_dates(start_idx, slice_len)
+    }
+
+    fn path(&self) -> String {
+        default_path()
+    }
+
+    fn train_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn target_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
+        default_embed()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        split_borders(lengths, total_rows)
+    }
+
+    fn init<B: Backend>(
+        &self,
+        lengths: &TimeLengths,
+        flag: ExpFlag,
+        device: &B::Device,
+    ) -> TimeSeriesDataset<B> {
+        if self.initial_value.len() != 3 {
+            panic!("doublescroll initial_value must contain exactly 3 elements");
+        }
+        let series = doublescroll(
+            self.n_timesteps,
+            self.r1,
+            self.r2,
+            self.r4,
+            self.ir,
+            self.beta,
+            [
+                self.initial_value[0],
+                self.initial_value[1],
+                self.initial_value[2],
+            ],
+            self.h,
+        )
+        .into_iter()
+        .map(|v| v.to_vec())
+        .collect::<Vec<_>>();
+        from_series(series, lengths, flag, device)
+    }
+}
+
 fn doublescroll_diff(state: [f64; 3], r1: f64, r2: f64, r4: f64, ir: f64, beta: f64) -> [f64; 3] {
     let v1 = state[0];
     let v2 = state[1];

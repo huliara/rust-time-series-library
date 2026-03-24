@@ -1,7 +1,19 @@
+use chrono::NaiveDateTime;
+use burn::prelude::Backend;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use crate::data::dataset::init_dataset::InitDataset;
+use crate::{
+    args::time_lengths::TimeLengths,
+    data::dataset::{
+        dynamic_system::config::{
+            default_columns, default_embed, default_parse_dates, default_path, from_series,
+            split_borders, DynamicColumnName,
+        },
+        init_dataset::InitDataset,
+        time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    },
+};
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct Lorenz96Config {
     #[arg(long, default_value_t = 10000)]
@@ -14,8 +26,80 @@ pub struct Lorenz96Config {
     pub dt: f64,
     #[arg(long, default_value_t = 0.01)]
     pub h: f64,
-    #[arg(long)]
+    #[arg(long, num_args = 1..)]
     pub initial_value: Vec<f64>,
+}
+
+impl Default for Lorenz96Config {
+    fn default() -> Self {
+        Self {
+            total_steps: 10000,
+            dimention: 36,
+            f: 8.0,
+            dt: 0.01,
+            h: 0.01,
+            initial_value: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Display for Lorenz96Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "lorenz96_nt{}_dim{}_f{:.2}", self.total_steps, self.dimention, self.f)
+    }
+}
+
+impl InitDataset<DynamicColumnName> for Lorenz96Config {
+    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+        default_parse_dates(start_idx, slice_len)
+    }
+
+    fn path(&self) -> String {
+        default_path()
+    }
+
+    fn train_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn target_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
+        default_embed()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        split_borders(lengths, total_rows)
+    }
+
+    fn init<B: Backend>(
+        &self,
+        lengths: &TimeLengths,
+        flag: ExpFlag,
+        device: &B::Device,
+    ) -> TimeSeriesDataset<B> {
+        let x0 = if self.initial_value.is_empty() {
+            None
+        } else {
+            Some(self.initial_value.clone())
+        };
+        let series = lorenz96(
+            self.total_steps,
+            0,
+            self.dimention,
+            self.f,
+            self.dt,
+            self.h,
+            x0,
+        )
+        .expect("Failed to generate lorenz96 series");
+        from_series(series, lengths, flag, device)
+    }
 }
 
 fn lorenz96_diff(state: &[f64], f: f64) -> Vec<f64> {

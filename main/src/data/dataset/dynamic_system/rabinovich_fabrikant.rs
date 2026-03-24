@@ -1,3 +1,95 @@
+use chrono::NaiveDateTime;
+use clap::Args;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    args::time_lengths::TimeLengths,
+    data::dataset::{
+        dynamic_system::config::{
+            default_columns, default_embed, default_parse_dates, default_path, from_series,
+            split_borders, DynamicColumnName,
+        },
+        init_dataset::InitDataset,
+        time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    },
+};
+use burn::prelude::Backend;
+
+#[derive(Args, Debug, Clone, Deserialize, Serialize)]
+pub struct RabinovichFabrikantConfig {
+    #[arg(long, default_value_t = 10000)]
+    pub n_timesteps: usize,
+    #[arg(long, default_value_t = 0.14)]
+    pub alpha: f64,
+    #[arg(long, default_value_t = 0.1)]
+    pub gamma: f64,
+    #[arg(long, default_value_t = 0.005)]
+    pub h: f64,
+    #[arg(long, num_args = 3, default_values_t = [0.1, 0.1, 0.1])]
+    pub initial_value: Vec<f64>,
+}
+
+impl std::fmt::Display for RabinovichFabrikantConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "rf_nt{}_a{:.3}_g{:.3}", self.n_timesteps, self.alpha, self.gamma)
+    }
+}
+
+impl InitDataset<DynamicColumnName> for RabinovichFabrikantConfig {
+    fn parse_dates(_df: &polars::prelude::DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
+        default_parse_dates(start_idx, slice_len)
+    }
+
+    fn path(&self) -> String {
+        default_path()
+    }
+
+    fn train_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn target_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
+        default_embed()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        split_borders(lengths, total_rows)
+    }
+
+    fn init<B: Backend>(
+        &self,
+        lengths: &TimeLengths,
+        flag: ExpFlag,
+        device: &B::Device,
+    ) -> TimeSeriesDataset<B> {
+        if self.initial_value.len() != 3 {
+            panic!("rabinovich_fabrikant initial_value must contain exactly 3 elements");
+        }
+        let series = rabinovich_fabrikant(
+            self.n_timesteps,
+            self.alpha,
+            self.gamma,
+            [
+                self.initial_value[0],
+                self.initial_value[1],
+                self.initial_value[2],
+            ],
+            self.h,
+        )
+        .into_iter()
+        .map(|v| v.to_vec())
+        .collect::<Vec<_>>();
+        from_series(series, lengths, flag, device)
+    }
+}
+
 fn rabinovich_fabrikant_diff(state: [f64; 3], alpha: f64, gamma: f64) -> [f64; 3] {
     let x = state[0];
     let y = state[1];

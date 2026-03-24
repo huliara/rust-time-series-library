@@ -1,3 +1,96 @@
+use chrono::NaiveDateTime;
+use clap::Args;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    args::time_lengths::TimeLengths,
+    data::dataset::{
+        dynamic_system::config::{
+            default_columns, default_embed, default_parse_dates, default_path, from_series,
+            split_borders, DynamicColumnName,
+        },
+        init_dataset::InitDataset,
+        time_series_dataset::{ExpFlag, TimeSeriesDataset},
+    },
+};
+use burn::prelude::Backend;
+
+#[derive(Args, Debug, Clone, Deserialize, Serialize)]
+pub struct HenonMapConfig {
+    #[arg(long, default_value_t = 10000)]
+    pub n_timesteps: usize,
+    #[arg(long, default_value_t = 1.4)]
+    pub a: f64,
+    #[arg(long, default_value_t = 0.3)]
+    pub b: f64,
+    #[arg(long, num_args = 2, default_values_t = [0.0, 0.0])]
+    pub initial_value: Vec<f64>,
+}
+
+impl std::fmt::Display for HenonMapConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "henon_nt{}_a{:.2}_b{:.2}",
+            self.n_timesteps, self.a, self.b
+        )
+    }
+}
+
+impl InitDataset<DynamicColumnName> for HenonMapConfig {
+    fn parse_dates(
+        _df: &polars::prelude::DataFrame,
+        start_idx: usize,
+        slice_len: usize,
+    ) -> Vec<NaiveDateTime> {
+        default_parse_dates(start_idx, slice_len)
+    }
+
+    fn path(&self) -> String {
+        default_path()
+    }
+
+    fn train_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn target_columns(&self) -> Vec<DynamicColumnName> {
+        default_columns()
+    }
+
+    fn embed(&self) -> crate::args::time_embed::TimeEmbed {
+        default_embed()
+    }
+
+    fn split_borders(
+        lengths: &TimeLengths,
+        total_rows: usize,
+    ) -> ((usize, usize, usize), (usize, usize, usize)) {
+        split_borders(lengths, total_rows)
+    }
+
+    fn init<B: Backend>(
+        &self,
+        lengths: &TimeLengths,
+        flag: ExpFlag,
+        device: &B::Device,
+    ) -> TimeSeriesDataset<B> {
+        if self.initial_value.len() != 2 {
+            panic!("henon_map initial_value must contain exactly 2 elements");
+        }
+        let series = henon_map(
+            self.n_timesteps,
+            self.a,
+            self.b,
+            [self.initial_value[0], self.initial_value[1]],
+        )
+        .into_iter()
+        .map(|v| v.to_vec())
+        .collect::<Vec<_>>();
+        from_series(series, lengths, flag, device)
+    }
+}
+
 pub fn henon_map(n_timesteps: usize, a: f64, b: f64, x0: [f64; 2]) -> Vec<[f64; 2]> {
     if n_timesteps == 0 {
         return Vec::new();

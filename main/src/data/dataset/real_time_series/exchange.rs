@@ -85,6 +85,23 @@ impl InitDataset<ExchangeColumnName> for ExchangeConfig {
             })
             .collect()
     }
+
+    fn path(&self) -> String {
+        self.path.clone()
+    }
+
+    fn train_columns(&self) -> Vec<ExchangeColumnName> {
+        self.train_features.clone()
+    }
+
+    fn target_columns(&self) -> Vec<ExchangeColumnName> {
+        self.targets.clone()
+    }
+
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
+
     fn split_borders(
         lengths: &TimeLengths,
         total_rows: usize,

@@ -30,6 +30,11 @@ pub trait InitDataset<
 >
 {
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime>;
+    fn path(&self) -> String;
+    fn train_columns(&self) -> Vec<C>;
+    fn target_columns(&self) -> Vec<C>;
+    fn embed(&self) -> TimeEmbed;
+
     fn read_data(path: String) -> Result<DataFrame, PolarsError> {
         let path = PathBuf::from(get_dataset_path(path.clone()));
         CsvReadOptions::default()
@@ -44,14 +49,15 @@ pub trait InitDataset<
     ) -> ((usize, usize, usize), (usize, usize, usize));
 
     fn init<B: Backend>(
-        path: String,
-        train_columns: Vec<C>,
-        target_columns: Vec<C>,
-        embed: TimeEmbed,
+        &self,
         lengths: &TimeLengths,
         flag: ExpFlag,
         device: &B::Device,
     ) -> TimeSeriesDataset<B> {
+        let path = self.path();
+        let train_columns = self.train_columns();
+        let target_columns = self.target_columns();
+        let embed = self.embed();
         let df = Self::read_data(path.clone());
         match df {
             Ok(df) => {
