@@ -74,10 +74,6 @@ impl fmt::Display for ExchangeConfig {
 }
 
 impl InitTimeSeries for ExchangeConfig {
-    fn embed(&self) -> TimeEmbed {
-        self.embed.clone()
-    }
-
     fn split_borders(
         lengths: &TimeLengths,
         total_rows: usize,
@@ -98,6 +94,9 @@ impl InitTimeSeries for ExchangeConfig {
 }
 
 impl InitRealTimeSeries<ExchangeColumnName> for ExchangeConfig {
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("time")

@@ -74,10 +74,6 @@ impl fmt::Display for Etth1Config {
 }
 
 impl InitTimeSeries for Etth1Config {
-    fn embed(&self) -> TimeEmbed {
-        self.embed.clone()
-    }
-
     fn split_borders(
         lengths: &TimeLengths,
         _total_rows: usize,
@@ -97,6 +93,9 @@ impl InitTimeSeries for Etth1Config {
 }
 
 impl InitRealTimeSeries<EtthColumnName> for Etth1Config {
+    fn embed(&self) -> TimeEmbed {
+        self.embed.clone()
+    }
     fn parse_dates(df: &DataFrame, start_idx: usize, slice_len: usize) -> Vec<NaiveDateTime> {
         df.slice(start_idx as i64, slice_len)
             .column("date")

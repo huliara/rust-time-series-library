@@ -34,6 +34,7 @@ pub trait InitRealTimeSeries<
     fn path(&self) -> String;
     fn train_columns(&self) -> Vec<C>;
     fn target_columns(&self) -> Vec<C>;
+    fn embed(&self) -> TimeEmbed;
 
     fn read_data(path: String) -> Result<DataFrame, PolarsError> {
         let path = PathBuf::from(get_dataset_path(path.clone()));

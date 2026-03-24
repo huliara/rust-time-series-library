@@ -11,16 +11,9 @@ use crate::{
         util::time_features,
     },
 };
-use burn::{prelude::Backend, tensor::TensorData, Tensor};
-use chrono::{Datelike, NaiveDateTime, Timelike};
-use clap::ValueEnum;
-use lib::env_path::get_dataset_path;
-use ndarray::{s, Array2};
-use polars::prelude::*;
+use burn::prelude::Backend;
 
 pub trait InitTimeSeries {
-    fn embed(&self) -> TimeEmbed;
-
     fn split_borders(
         lengths: &TimeLengths,
         total_rows: usize,
