@@ -63,8 +63,10 @@ pub trait InitDataset<
         flag: ExpFlag,
         device: &B::Device,
     ) -> TimeSeriesDataset<B> {
-        Self::validate_feature_order(target_columns.clone(), train_columns.clone())
-            .map_err(|msg| panic!("DataConfig validation failed: {msg}"));
+        if let Err(msg) = Self::validate_feature_order(target_columns.clone(), train_columns.clone())
+        {
+            panic!("DataConfig validation failed: {msg}");
+        }
         let df = Self::read_data(path.clone());
         match df {
             Ok(df) => {

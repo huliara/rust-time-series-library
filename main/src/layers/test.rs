@@ -1,6 +1,6 @@
-use crate::args::column_name::EtthColumnName;
-use crate::args::data_config::DataArgs;
-use crate::args::data_config::DataConfig;
+use crate::data::column_name::EtthColumnName;
+use crate::data::data_config::etth1::Etth1Args;
+use crate::data::data_config::DataConfig;
 use crate::data::test_utils::setup_test_dataloader;
 use crate::layers::Layer;
 use crate::test_utils::{
@@ -16,10 +16,10 @@ use std::vec;
 pub fn assert_layer_forward<B: Backend>(dim: Dim, layer: Layer<B>) {
     let data_config = match dim {
         Dim::Multidim => DataConfig::default(),
-        Dim::Onedim => DataConfig::ETTh1(DataArgs {
+        Dim::Onedim => DataConfig::ETTh1(Etth1Args {
             train_features: vec![EtthColumnName::Ot],
             targets: vec![EtthColumnName::Ot],
-            ..DataArgs::default()
+            ..Etth1Args::default()
         }),
     };
     let data_loader = setup_test_dataloader(data_config);

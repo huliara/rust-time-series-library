@@ -1,18 +1,10 @@
 pub mod etth1;
 pub mod exchange;
 pub mod init_dataset;
-use crate::{
-    args::time_embed::TimeEmbed,
-    data::{
-        column_name::{EtthColumnName, ExchangeColumnName},
-        data_config::{etth1::Etth1Args, exchange::ExchangeArgs},
-        dataset::dynamic_system::lorenz96::DynamicSystemArgs,
-    },
-};
-use clap::{Args, Subcommand, ValueEnum};
-use core::fmt;
+use crate::data::data_config::{etth1::Etth1Args, exchange::ExchangeArgs};
+use clap::Subcommand;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum DataConfig {
@@ -33,87 +25,46 @@ impl DataConfig {
             DataConfig::Exchange(cmd) => cmd.train_features.len(),
         }
     }
+
+    pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
+        match self {
+            DataConfig::ETTh1(cmd) => {
+                Self::validate_target_prefix(&cmd.targets, &cmd.train_features, "ETTh1")
+            }
+            DataConfig::Exchange(cmd) => {
+                Self::validate_target_prefix(&cmd.targets, &cmd.train_features, "Exchange")
+            }
+        }
+    }
+
+    fn validate_target_prefix<C: PartialEq + Debug>(
+        targets: &[C],
+        train_features: &[C],
+        dataset_name: &str,
+    ) -> Result<(), String> {
+        if targets.len() > train_features.len() {
+            return Err(format!(
+                "{dataset_name}: targets length ({}) exceeds train_features length ({})",
+                targets.len(),
+                train_features.len()
+            ));
+        }
+
+        if targets != &train_features[..targets.len()] {
+            return Err(format!(
+                "{dataset_name}: targets {:?} do not match the first train features {:?}",
+                targets,
+                &train_features[..targets.len()]
+            ));
+        }
+
+        Ok(())
+    }
+
     pub fn inner_string(&self) -> String {
         match self {
             DataConfig::ETTh1(cmd) => cmd.to_string(),
             DataConfig::Exchange(cmd) => cmd.to_string(),
         }
-    }
-}
-
-#[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct DataArgs<
-    C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug,
-> {
-    #[arg(long)]
-    pub path: String,
-    #[arg(long, num_args = 1..)]
-    pub train_features: Vec<C>,
-
-    #[arg(long, num_args = 1..)]
-    pub targets: Vec<C>,
-
-    #[arg(long, value_enum)]
-    pub embed: TimeEmbed,
-}
-
-impl<C> DataArgs<C> where
-    C: Clone
-        + std::marker::Send
-        + std::marker::Sync
-        + 'static
-        + ValueEnum
-        + Display
-        + PartialEq
-        + Debug
-{
-}
-
-impl Default for DataArgs<EtthColumnName> {
-    fn default() -> Self {
-        Self {
-            path: "ETT/ETTh1.csv".to_string(),
-            train_features: vec![
-                EtthColumnName::Hufl,
-                EtthColumnName::Hull,
-                EtthColumnName::Mufl,
-                EtthColumnName::Mull,
-                EtthColumnName::Lufl,
-                EtthColumnName::Lull,
-                EtthColumnName::Ot,
-            ],
-            targets: vec![
-                EtthColumnName::Hufl,
-                EtthColumnName::Hull,
-                EtthColumnName::Mufl,
-                EtthColumnName::Mull,
-                EtthColumnName::Lufl,
-                EtthColumnName::Lull,
-                EtthColumnName::Ot,
-            ],
-            embed: TimeEmbed::TimeF,
-        }
-    }
-}
-
-impl<C: Clone + std::marker::Send + std::marker::Sync + 'static + ValueEnum + Display + Debug>
-    fmt::Display for DataArgs<C>
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}_{}_{}",
-            self.targets
-                .iter()
-                .map(|t| t.to_string())
-                .collect::<Vec<_>>()
-                .join("_"),
-            self.train_features
-                .iter()
-                .map(|f| f.to_string())
-                .collect::<Vec<_>>()
-                .join("_"),
-            self.embed
-        )
     }
 }

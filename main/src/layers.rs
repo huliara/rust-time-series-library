@@ -4,6 +4,7 @@ pub mod embed;
 pub mod flatten_head;
 pub mod replication_pad_1d;
 pub mod self_attention_family;
+#[cfg(test)]
 pub mod test;
 pub mod transformer_enc_dec;
 use burn::prelude::Backend;

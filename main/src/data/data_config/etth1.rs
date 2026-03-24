@@ -5,6 +5,7 @@ use crate::{
 
 use chrono::NaiveDateTime;
 use clap::Args;
+use core::fmt;
 
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,52 @@ pub struct Etth1Args {
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
+}
+
+impl Default for Etth1Args {
+    fn default() -> Self {
+        Self {
+            path: "ETT/ETTh1.csv".to_string(),
+            train_features: vec![
+                EtthColumnName::Hufl,
+                EtthColumnName::Hull,
+                EtthColumnName::Mufl,
+                EtthColumnName::Mull,
+                EtthColumnName::Lufl,
+                EtthColumnName::Lull,
+                EtthColumnName::Ot,
+            ],
+            targets: vec![
+                EtthColumnName::Hufl,
+                EtthColumnName::Hull,
+                EtthColumnName::Mufl,
+                EtthColumnName::Mull,
+                EtthColumnName::Lufl,
+                EtthColumnName::Lull,
+                EtthColumnName::Ot,
+            ],
+            embed: TimeEmbed::TimeF,
+        }
+    }
+}
+
+impl fmt::Display for Etth1Args {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let targets = self
+            .targets
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>()
+            .join("_");
+        let train_features = self
+            .train_features
+            .iter()
+            .map(|feature| feature.to_string())
+            .collect::<Vec<_>>()
+            .join("_");
+
+        write!(f, "{}_{}_{}", targets, train_features, self.embed)
+    }
 }
 
 impl InitDataset<EtthColumnName> for Etth1Args {

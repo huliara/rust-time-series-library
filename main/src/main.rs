@@ -4,6 +4,7 @@ mod data;
 mod exp;
 mod layers;
 mod models;
+#[cfg(test)]
 mod test_utils;
 
 use args::exp::TaskName;

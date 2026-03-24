@@ -3,6 +3,8 @@ use std::env;
 
 use lib::env_path::get_python_path;
 
+type DataloaderTestOutput = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>);
+
 pub fn get_python_fnction(py: Python<'_>, name: String, attr_name: String) -> Bound<'_, PyAny> {
     let sys = py.import("sys").unwrap();
 
@@ -108,7 +110,7 @@ pub fn execute_dataset_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
     })
 }
 
-pub fn execute_dataloader_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>)> {
+pub fn execute_dataloader_test() -> PyResult<DataloaderTestOutput> {
     Python::attach(|py| {
         let func = get_python_fnction(
             py,

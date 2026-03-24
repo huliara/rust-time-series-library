@@ -5,8 +5,9 @@ use std::time::Instant;
 
 use crate::{
     args::{
-        data_config::DataConfig, model_config::ModelConfig, time_lengths::TimeLengths, RootArgs,
+        model_config::ModelConfig, time_lengths::TimeLengths, RootArgs,
     },
+    data::data_config::DataConfig,
     exp::long_term_forecast::train::ExpConfig,
 };
 

@@ -1,15 +1,11 @@
-use std::path::PathBuf;
-
 use crate::{
     args::{time_embed::TimeEmbed, time_lengths::TimeLengths},
-    data::{
-        column_name::{EtthColumnName, ExchangeColumnName},
-        data_config::init_dataset::InitDataset,
-    },
+    data::{column_name::ExchangeColumnName, data_config::init_dataset::InitDataset},
 };
 
 use chrono::{DateTime, NaiveDateTime};
 use clap::Args;
+use core::fmt;
 
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -26,6 +22,52 @@ pub struct ExchangeArgs {
 
     #[arg(long, value_enum)]
     pub embed: TimeEmbed,
+}
+
+impl Default for ExchangeArgs {
+    fn default() -> Self {
+        Self {
+            path: "exchange/exchange.csv".to_string(),
+            train_features: vec![
+                ExchangeColumnName::Open,
+                ExchangeColumnName::High,
+                ExchangeColumnName::Low,
+                ExchangeColumnName::Close,
+                ExchangeColumnName::TickVolume,
+                ExchangeColumnName::Spread,
+                ExchangeColumnName::RealVolume,
+            ],
+            targets: vec![
+                ExchangeColumnName::Open,
+                ExchangeColumnName::High,
+                ExchangeColumnName::Low,
+                ExchangeColumnName::Close,
+                ExchangeColumnName::TickVolume,
+                ExchangeColumnName::Spread,
+                ExchangeColumnName::RealVolume,
+            ],
+            embed: TimeEmbed::TimeF,
+        }
+    }
+}
+
+impl fmt::Display for ExchangeArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let targets = self
+            .targets
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<_>>()
+            .join("_");
+        let train_features = self
+            .train_features
+            .iter()
+            .map(|feature| feature.to_string())
+            .collect::<Vec<_>>()
+            .join("_");
+
+        write!(f, "{}_{}_{}", targets, train_features, self.embed)
+    }
 }
 
 impl InitDataset<ExchangeColumnName> for ExchangeArgs {

@@ -1,8 +1,4 @@
-use burn::{
-    nn::loss::{MseLoss, Reduction},
-    prelude::*,
-    tensor::backend::Backend,
-};
+use burn::{nn::loss::Reduction, prelude::*, tensor::backend::Backend};
 
 pub struct CauchyLoss {
     pub scale: f64,
