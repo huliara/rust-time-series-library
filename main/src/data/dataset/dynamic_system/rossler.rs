@@ -5,7 +5,7 @@ use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
         dynamic_system::config::{from_series, split_borders},
-        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
@@ -134,9 +134,7 @@ mod tests {
 
     use crate::{
         args::time_lengths::TimeLengths,
-        data::dataset::{
-            dynamic_system::config::from_series, time_series_dataset::ExpFlag,
-        },
+        data::dataset::{dynamic_system::config::from_series, time_series_dataset::ExpFlag},
         test_utils::{
             assert_tensor_shape_value::assert_tensor_shape_and_val,
             test_py::execute_dynamic_system_dataset_test,
@@ -147,34 +145,23 @@ mod tests {
 
     type B = burn::backend::wgpu::Wgpu;
 
-    fn assert_dataset_matches_python(system_name: &str, series: Vec<Vec<f64>>) {
+    #[test]
+    fn test_rossler_dataset_against_python() {
+        let n_timesteps = 400;
+        let series = rossler(n_timesteps, 0.2, 0.2, 5.7, [1.0, 1.0, 1.0], 0.01)
+            .into_iter()
+            .map(|v| v.to_vec())
+            .collect::<Vec<_>>();
+
+        let system_name = "rossler";
         let lengths = TimeLengths::default();
         let device = Default::default();
 
         let py_dataset_result = execute_dynamic_system_dataset_test(system_name).unwrap();
         let rust_dataset = from_series::<B>(series, &lengths, ExpFlag::Test, &device);
 
-        let py_tensor_stamp =
-            TensorData::new(py_dataset_result.1, rust_dataset.data_stamp.shape());
-        let rust_tensor_stamp = rust_dataset.data_stamp.to_data();
-        assert_tensor_shape_and_val(py_tensor_stamp, rust_tensor_stamp);
-
-        let py_tensor_x = TensorData::new(py_dataset_result.0, rust_dataset.data_x.shape());
+        let py_tensor_x = TensorData::new(py_dataset_result, rust_dataset.data_x.shape());
         let rust_tensor_x = rust_dataset.data_x.to_data();
         assert_tensor_shape_and_val(py_tensor_x, rust_tensor_x);
-
-        let py_tensor_y = TensorData::new(py_dataset_result.2, rust_dataset.data_y.shape());
-        let rust_tensor_y = rust_dataset.data_y.to_data();
-        assert_tensor_shape_and_val(py_tensor_y, rust_tensor_y);
-    }
-
-    #[test]
-    fn test_rossler_dataset_against_python() {
-        let n_timesteps = 400;
-        let rossler_series = rossler(n_timesteps, 0.2, 0.2, 5.7, [1.0, 1.0, 1.0], 0.01)
-            .into_iter()
-            .map(|v| v.to_vec())
-            .collect::<Vec<_>>();
-        assert_dataset_matches_python("rossler", rossler_series);
     }
 }

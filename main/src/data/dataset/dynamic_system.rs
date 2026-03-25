@@ -13,3 +13,5 @@ pub mod multiscroll;
 pub mod narma;
 pub mod rabinovich_fabrikant;
 pub mod rossler;
+#[cfg(test)]
+mod test;
