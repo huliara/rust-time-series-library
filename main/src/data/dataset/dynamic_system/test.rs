@@ -5,7 +5,7 @@ use crate::test_utils::{
     test_py::execute_dynamic_system_dataset_test,
 };
 
-fn assert_dynamic_system_series(system_name: &str, series: Vec<Vec<f64>>) {
+pub fn assert_dynamic_system_series(system_name: &str, series: Vec<Vec<f64>>) {
     type B = burn::backend::wgpu::Wgpu;
 
     let py_dataset_result = execute_dynamic_system_dataset_test(system_name).unwrap();

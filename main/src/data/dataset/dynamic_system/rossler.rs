@@ -130,16 +130,8 @@ pub fn rossler(n_timesteps: usize, a: f64, b: f64, c: f64, x0: [f64; 3], h: f64)
 
 #[cfg(test)]
 mod tests {
-    use burn::tensor::TensorData;
 
-    use crate::{
-        args::time_lengths::TimeLengths,
-        data::dataset::{dynamic_system::config::from_series, time_series_dataset::ExpFlag},
-        test_utils::{
-            assert_tensor_shape_value::assert_tensor_shape_and_val,
-            test_py::execute_dynamic_system_dataset_test,
-        },
-    };
+    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
 
     use super::rossler;
 
@@ -154,14 +146,6 @@ mod tests {
             .collect::<Vec<_>>();
 
         let system_name = "rossler";
-        let lengths = TimeLengths::default();
-        let device = Default::default();
-
-        let py_dataset_result = execute_dynamic_system_dataset_test(system_name).unwrap();
-        let rust_dataset = from_series::<B>(series, &lengths, ExpFlag::Test, &device);
-
-        let py_tensor_x = TensorData::new(py_dataset_result, rust_dataset.data_x.shape());
-        let rust_tensor_x = rust_dataset.data_x.to_data();
-        assert_tensor_shape_and_val(py_tensor_x, rust_tensor_x);
+        assert_dynamic_system_series(system_name, series);
     }
 }
