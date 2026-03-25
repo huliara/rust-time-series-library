@@ -135,8 +135,6 @@ mod tests {
 
     use super::rossler;
 
-    type B = burn::backend::wgpu::Wgpu;
-
     #[test]
     fn test_rossler_dataset_against_python() {
         let n_timesteps = 400;

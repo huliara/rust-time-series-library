@@ -6,8 +6,6 @@ use crate::test_utils::{
 };
 
 pub fn assert_dynamic_system_series(system_name: &str, series: Vec<Vec<f64>>) {
-    type B = burn::backend::wgpu::Wgpu;
-
     let py_dataset_result = execute_dynamic_system_dataset_test(system_name).unwrap();
     let rust_vec = series.into_iter().flatten().collect::<Vec<f64>>();
     let rust_tensor = TensorData::new(rust_vec, [py_dataset_result.clone().len()]);

@@ -109,43 +109,9 @@ pub fn narma(
 
 #[cfg(test)]
 mod tests {
-    use burn::tensor::TensorData;
-
-    use crate::{
-        args::time_lengths::TimeLengths,
-        data::dataset::{
-            dynamic_system::config::from_series, time_series_dataset::ExpFlag,
-        },
-        test_utils::{
-            assert_tensor_shape_value::assert_tensor_shape_and_val,
-            test_py::execute_dynamic_system_dataset_test,
-        },
-    };
+    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
 
     use super::narma;
-
-    type B = burn::backend::wgpu::Wgpu;
-
-    fn assert_dataset_matches_python(system_name: &str, series: Vec<Vec<f64>>) {
-        let lengths = TimeLengths::default();
-        let device = Default::default();
-
-        let py_dataset_result = execute_dynamic_system_dataset_test(system_name).unwrap();
-        let rust_dataset = from_series::<B>(series, &lengths, ExpFlag::Test, &device);
-
-        let py_tensor_stamp =
-            TensorData::new(py_dataset_result.1, rust_dataset.data_stamp.shape());
-        let rust_tensor_stamp = rust_dataset.data_stamp.to_data();
-        assert_tensor_shape_and_val(py_tensor_stamp, rust_tensor_stamp);
-
-        let py_tensor_x = TensorData::new(py_dataset_result.0, rust_dataset.data_x.shape());
-        let rust_tensor_x = rust_dataset.data_x.to_data();
-        assert_tensor_shape_and_val(py_tensor_x, rust_tensor_x);
-
-        let py_tensor_y = TensorData::new(py_dataset_result.2, rust_dataset.data_y.shape());
-        let rust_tensor_y = rust_dataset.data_y.to_data();
-        assert_tensor_shape_and_val(py_tensor_y, rust_tensor_y);
-    }
 
     #[test]
     fn test_narma_dataset_against_python() {
@@ -156,7 +122,9 @@ mod tests {
             .map(|idx| (idx % 7) as f64 * 0.05)
             .collect::<Vec<_>>();
         let (_u, narma_y) = narma(n_timesteps, order, 0.3, 0.05, 1.5, 0.1, x0, None, Some(u));
-        let narma_series = narma_y.into_iter().map(|v| v.to_vec()).collect::<Vec<_>>();
-        assert_dataset_matches_python("narma", narma_series);
+        let series = narma_y.into_iter().map(|v| v.to_vec()).collect::<Vec<_>>();
+
+        let system_name = "narma";
+        assert_dynamic_system_series(system_name, series);
     }
 }
