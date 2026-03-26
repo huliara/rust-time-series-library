@@ -1,6 +1,5 @@
 import numpy as np
 
-
 from reservoirpy.datasets import (
     doublescroll,
     henon_map,
@@ -14,13 +13,6 @@ from reservoirpy.datasets import (
     rabinovich_fabrikant,
     rossler,
 )
-
-
-def _as_2d(series: np.ndarray) -> np.ndarray:
-    arr = np.asarray(series, dtype=np.float64)
-    if arr.ndim == 1:
-        return arr.reshape(-1, 1)
-    return arr
 
 
 def _series_for_system(system_name: str):
@@ -111,3 +103,9 @@ def _series_for_system(system_name: str):
 
 def dynamic_system_dataset_test(system_name: str):
     return _series_for_system(system_name).flatten().tolist()
+
+
+if __name__ == "__main__":
+    system_name = "lorenz"
+    series = dynamic_system_dataset_test(system_name)
+    print(f"{system_name} series length: {len(series)}")
