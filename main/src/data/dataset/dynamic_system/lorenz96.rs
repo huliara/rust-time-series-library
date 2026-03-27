@@ -7,7 +7,7 @@ use crate::{
     data::dataset::{
         dynamic_system::{
             config::{from_series, split_borders},
-            ivp_solve::{IvpMethod, IvpOptions, solve_ivp},
+            ivp_solve::{solve_ivp, IvpMethod, IvpOptions},
         },
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
@@ -130,25 +130,32 @@ pub fn lorenz96(
         init
     };
 
-    let total_steps = n_timesteps + warmup;
-    let t_eval = (0..total_steps).map(|i| i as f64 * h).collect::<Vec<_>>();
+    let t_max = (warmup + n_timesteps) as f64 * h;
+    let span_end = t_max * h;
+    let t_eval = if n_timesteps == 1 {
+        vec![0.0]
+    } else {
+        (0..n_timesteps)
+            .map(|i| i as f64 * span_end / (n_timesteps as f64 - 1.0))
+            .collect::<Vec<_>>()
+    };
+    let dt_eval = if n_timesteps == 1 {
+        h
+    } else {
+        span_end / (n_timesteps as f64 - 1.0)
+    };
     let options = IvpOptions {
         method: IvpMethod::Rk45,
         t_eval: Some(t_eval),
-        first_step: Some(h),
-        max_step: h,
-        min_step: h * 1e-6,
+        first_step: Some(dt_eval),
+        max_step: dt_eval,
+        min_step: dt_eval * 1e-6,
         rtol: 1e-8,
         atol: 1e-10,
     };
 
-    let result = solve_ivp(
-        |_t, y| lorenz96_diff(y, f),
-        (0.0, (total_steps - 1) as f64 * h),
-        state,
-        options,
-    )
-    .map_err(|e| format!("Failed to solve lorenz96 IVP: {e}"))?;
+    let result = solve_ivp(|_t, y| lorenz96_diff(y, f), (0.0, span_end), state, options)
+        .map_err(|e| format!("Failed to solve lorenz96 IVP: {e}"))?;
 
     if !result.success {
         return Err(format!("Failed to solve lorenz96 IVP: {}", result.message));

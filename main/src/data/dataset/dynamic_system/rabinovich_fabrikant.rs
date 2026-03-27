@@ -98,13 +98,25 @@ pub fn rabinovich_fabrikant(
         return Vec::new();
     }
 
-    let t_eval = (0..n_timesteps).map(|i| i as f64 * h).collect::<Vec<_>>();
+    let t_max = n_timesteps as f64 * h;
+    let t_eval = if n_timesteps == 1 {
+        vec![0.0]
+    } else {
+        (0..n_timesteps)
+            .map(|i| i as f64 * t_max / (n_timesteps as f64 - 1.0))
+            .collect::<Vec<_>>()
+    };
+    let dt_eval = if n_timesteps == 1 {
+        h
+    } else {
+        t_max / (n_timesteps as f64 - 1.0)
+    };
     let options = IvpOptions {
         method: IvpMethod::Rk45,
         t_eval: Some(t_eval),
-        first_step: Some(h),
-        max_step: h,
-        min_step: h * 1e-6,
+        first_step: Some(dt_eval),
+        max_step: dt_eval,
+        min_step: dt_eval * 1e-6,
         rtol: 1e-8,
         atol: 1e-10,
     };
@@ -114,7 +126,7 @@ pub fn rabinovich_fabrikant(
             let d = rabinovich_fabrikant_diff([y[0], y[1], y[2]], alpha, gamma);
             vec![d[0], d[1], d[2]]
         },
-        (0.0, (n_timesteps - 1) as f64 * h),
+        (0.0, t_max),
         vec![x0[0], x0[1], x0[2]],
         options,
     )
