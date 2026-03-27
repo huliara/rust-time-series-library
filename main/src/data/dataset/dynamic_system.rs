@@ -4,6 +4,7 @@ pub mod _mg_rk4;
 pub mod config;
 pub mod doublescroll;
 pub mod henon_map;
+pub mod ivp_solve;
 pub mod kuramoto_sivashinsky;
 pub mod logistic_map;
 pub mod lorenz;
