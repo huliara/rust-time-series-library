@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders},
+        dynamic_system::{
+            config::{from_series, split_borders},
+            ivp_solve::{IvpMethod, IvpOptions, solve_ivp},
+        },
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -83,49 +86,42 @@ fn rossler_diff(state: [f64; 3], a: f64, b: f64, c: f64) -> [f64; 3] {
     [-y - z, x + a * y, b + z * (x - c)]
 }
 
-fn rk4_step(state: [f64; 3], dt: f64, a: f64, b: f64, c: f64) -> [f64; 3] {
-    let k1 = rossler_diff(state, a, b, c);
-    let s2 = [
-        state[0] + 0.5 * dt * k1[0],
-        state[1] + 0.5 * dt * k1[1],
-        state[2] + 0.5 * dt * k1[2],
-    ];
-    let k2 = rossler_diff(s2, a, b, c);
-    let s3 = [
-        state[0] + 0.5 * dt * k2[0],
-        state[1] + 0.5 * dt * k2[1],
-        state[2] + 0.5 * dt * k2[2],
-    ];
-    let k3 = rossler_diff(s3, a, b, c);
-    let s4 = [
-        state[0] + dt * k3[0],
-        state[1] + dt * k3[1],
-        state[2] + dt * k3[2],
-    ];
-    let k4 = rossler_diff(s4, a, b, c);
-
-    [
-        state[0] + dt * (k1[0] + 2.0 * k2[0] + 2.0 * k3[0] + k4[0]) / 6.0,
-        state[1] + dt * (k1[1] + 2.0 * k2[1] + 2.0 * k3[1] + k4[1]) / 6.0,
-        state[2] + dt * (k1[2] + 2.0 * k2[2] + 2.0 * k3[2] + k4[2]) / 6.0,
-    ]
-}
-
 pub fn rossler(n_timesteps: usize, a: f64, b: f64, c: f64, x0: [f64; 3], h: f64) -> Vec<[f64; 3]> {
     if n_timesteps == 0 {
         return Vec::new();
     }
 
-    let mut out = Vec::with_capacity(n_timesteps);
-    let mut state = x0;
-    out.push(state);
+    let t_eval = (0..n_timesteps).map(|i| i as f64 * h).collect::<Vec<_>>();
+    let options = IvpOptions {
+        method: IvpMethod::Rk45,
+        t_eval: Some(t_eval),
+        first_step: Some(h),
+        max_step: h,
+        min_step: h * 1e-6,
+        rtol: 1e-8,
+        atol: 1e-10,
+    };
 
-    for _ in 1..n_timesteps {
-        state = rk4_step(state, h, a, b, c);
-        out.push(state);
+    let result = solve_ivp(
+        |_t, y| {
+            let d = rossler_diff([y[0], y[1], y[2]], a, b, c);
+            vec![d[0], d[1], d[2]]
+        },
+        (0.0, (n_timesteps - 1) as f64 * h),
+        vec![x0[0], x0[1], x0[2]],
+        options,
+    )
+    .expect("Failed to solve rossler IVP");
+
+    if !result.success {
+        panic!("Failed to solve rossler IVP: {}", result.message);
     }
 
-    out
+    result
+        .y
+        .into_iter()
+        .map(|v| [v[0], v[1], v[2]])
+        .collect::<Vec<_>>()
 }
 
 #[cfg(test)]

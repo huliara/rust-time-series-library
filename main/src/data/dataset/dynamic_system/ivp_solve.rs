@@ -94,17 +94,14 @@ where
     let k3 = fun(t + h * (3.0 / 10.0), &y3);
 
     let y4 = (0..n)
-        .map(|i| {
-            y[i] + h * (44.0 / 45.0 * k1[i] - 56.0 / 15.0 * k2[i] + 32.0 / 9.0 * k3[i])
-        })
+        .map(|i| y[i] + h * (44.0 / 45.0 * k1[i] - 56.0 / 15.0 * k2[i] + 32.0 / 9.0 * k3[i]))
         .collect::<Vec<_>>();
     let k4 = fun(t + h * (4.0 / 5.0), &y4);
 
     let y5 = (0..n)
         .map(|i| {
             y[i] + h
-                * (19372.0 / 6561.0 * k1[i] - 25360.0 / 2187.0 * k2[i]
-                    + 64448.0 / 6561.0 * k3[i]
+                * (19372.0 / 6561.0 * k1[i] - 25360.0 / 2187.0 * k2[i] + 64448.0 / 6561.0 * k3[i]
                     - 212.0 / 729.0 * k4[i])
         })
         .collect::<Vec<_>>();
@@ -124,9 +121,7 @@ where
     let y7 = (0..n)
         .map(|i| {
             y[i] + h
-                * (35.0 / 384.0 * k1[i]
-                    + 500.0 / 1113.0 * k3[i]
-                    + 125.0 / 192.0 * k4[i]
+                * (35.0 / 384.0 * k1[i] + 500.0 / 1113.0 * k3[i] + 125.0 / 192.0 * k4[i]
                     - 2187.0 / 6784.0 * k5[i]
                     + 11.0 / 84.0 * k6[i])
         })
@@ -140,9 +135,7 @@ where
     let y4_out = (0..n)
         .map(|i| {
             y[i] + h
-                * (5179.0 / 57600.0 * k1[i]
-                    + 7571.0 / 16695.0 * k3[i]
-                    + 393.0 / 640.0 * k4[i]
+                * (5179.0 / 57600.0 * k1[i] + 7571.0 / 16695.0 * k3[i] + 393.0 / 640.0 * k4[i]
                     - 92097.0 / 339200.0 * k5[i]
                     + 187.0 / 2100.0 * k6[i]
                     + 1.0 / 40.0 * k7[i])
@@ -184,7 +177,8 @@ where
             y: vec![y0],
             nfev: 0,
             status: 0,
-            message: "The solver successfully reached the end of the integration interval.".to_string(),
+            message: "The solver successfully reached the end of the integration interval."
+                .to_string(),
             success: true,
         });
     }
@@ -346,7 +340,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{IvpMethod, IvpOptions, solve_ivp};
+    use super::{solve_ivp, IvpMethod, IvpOptions};
 
     #[test]
     fn test_solve_ivp_exponential_decay() {
@@ -357,13 +351,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = solve_ivp(
-            |_t, y| vec![-0.5 * y[0]],
-            (0.0, 10.0),
-            vec![2.0],
-            options,
-        )
-        .unwrap();
+        let result = solve_ivp(|_t, y| vec![-0.5 * y[0]], (0.0, 10.0), vec![2.0], options).unwrap();
 
         assert!(result.success);
         let y_end = result.y.last().unwrap()[0];
@@ -381,13 +369,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = solve_ivp(
-            |_t, y| vec![-0.5 * y[0]],
-            (0.0, 10.0),
-            vec![2.0],
-            options,
-        )
-        .unwrap();
+        let result = solve_ivp(|_t, y| vec![-0.5 * y[0]], (0.0, 10.0), vec![2.0], options).unwrap();
 
         assert_eq!(result.t.len(), 5);
         assert_eq!(result.y.len(), 5);

@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders},
+        dynamic_system::{
+            config::{from_series, split_borders},
+            ivp_solve::{IvpMethod, IvpOptions, solve_ivp},
+        },
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -97,32 +100,6 @@ fn lorenz96_diff(state: &[f64], f: f64) -> Vec<f64> {
     ds
 }
 
-fn rk4_step(state: &[f64], dt: f64, f: f64) -> Vec<f64> {
-    let k1 = lorenz96_diff(state, f);
-    let s2 = state
-        .iter()
-        .zip(k1.iter())
-        .map(|(x, k)| x + 0.5 * dt * k)
-        .collect::<Vec<_>>();
-    let k2 = lorenz96_diff(&s2, f);
-    let s3 = state
-        .iter()
-        .zip(k2.iter())
-        .map(|(x, k)| x + 0.5 * dt * k)
-        .collect::<Vec<_>>();
-    let k3 = lorenz96_diff(&s3, f);
-    let s4 = state
-        .iter()
-        .zip(k3.iter())
-        .map(|(x, k)| x + dt * k)
-        .collect::<Vec<_>>();
-    let k4 = lorenz96_diff(&s4, f);
-
-    (0..state.len())
-        .map(|i| state[i] + dt * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0)
-        .collect::<Vec<_>>()
-}
-
 pub fn lorenz96(
     n_timesteps: usize,
     warmup: usize,
@@ -139,7 +116,7 @@ pub fn lorenz96(
         return Ok(Vec::new());
     }
 
-    let mut state = if let Some(initial) = x0 {
+    let state = if let Some(initial) = x0 {
         if initial.len() != n {
             return Err(format!(
                 "x0 should have shape ({n},), but has length {}",
@@ -154,15 +131,30 @@ pub fn lorenz96(
     };
 
     let total_steps = n_timesteps + warmup;
-    let mut out = Vec::with_capacity(total_steps);
-    out.push(state.clone());
+    let t_eval = (0..total_steps).map(|i| i as f64 * h).collect::<Vec<_>>();
+    let options = IvpOptions {
+        method: IvpMethod::Rk45,
+        t_eval: Some(t_eval),
+        first_step: Some(h),
+        max_step: h,
+        min_step: h * 1e-6,
+        rtol: 1e-8,
+        atol: 1e-10,
+    };
 
-    for _ in 1..total_steps {
-        state = rk4_step(&state, h, f);
-        out.push(state.clone());
+    let result = solve_ivp(
+        |_t, y| lorenz96_diff(y, f),
+        (0.0, (total_steps - 1) as f64 * h),
+        state,
+        options,
+    )
+    .map_err(|e| format!("Failed to solve lorenz96 IVP: {e}"))?;
+
+    if !result.success {
+        return Err(format!("Failed to solve lorenz96 IVP: {}", result.message));
     }
 
-    Ok(out.into_iter().skip(warmup).collect::<Vec<_>>())
+    Ok(result.y.into_iter().skip(warmup).collect::<Vec<_>>())
 }
 
 #[cfg(test)]
