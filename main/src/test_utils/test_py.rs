@@ -110,7 +110,7 @@ pub fn execute_dataset_test() -> PyResult<(Vec<f32>, Vec<f32>, Vec<f32>)> {
     })
 }
 
-pub fn execute_dynamic_system_dataset_test(system_name: &str) -> PyResult<Vec<f32>> {
+pub fn execute_dynamic_system_dataset_test(system_name: &str) -> PyResult<Vec<f64>> {
     Python::attach(|py| {
         let func = get_python_fnction(
             py,
@@ -120,7 +120,7 @@ pub fn execute_dynamic_system_dataset_test(system_name: &str) -> PyResult<Vec<f3
 
         let result = func.call1((system_name,))?;
 
-        let series: Vec<f32> = result.extract()?;
+        let series: Vec<f64> = result.extract()?;
 
         Ok(series)
     })

@@ -80,9 +80,9 @@ def _series_for_system(system_name: str):
     if system_name == "narma":
         order = 10
         u = np.array(
-            [(i % 7) * 0.05 for i in range(n_timesteps + order)], dtype=np.float64
+            [[(i % 7) * 0.05] for i in range(n_timesteps + order)], dtype=np.float64
         )
-        x0 = np.zeros(order, dtype=np.float64)
+        x0 = np.zeros((order, 1), dtype=np.float64)
         _u, y = narma(
             n_timesteps,
             order=order,
