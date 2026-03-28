@@ -145,7 +145,7 @@ pub fn lorenz96(
         span_end / (n_timesteps as f64 - 1.0)
     };
     let options = IvpOptions {
-        method: IvpMethod::Rk45,
+        method: IvpMethod::Dop853,
         t_eval: Some(t_eval),
         first_step: Some(dt_eval),
         max_step: dt_eval,

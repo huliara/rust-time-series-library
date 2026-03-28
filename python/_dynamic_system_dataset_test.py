@@ -27,16 +27,25 @@ def _series_for_system(system_name: str):
             n_timesteps,
             rho=28.0,
             sigma=10.0,
-            beta=2.6666666666666665,
+            beta=8.0 / 3.0,
             x0=[1.0, 1.0, 1.0],
-            h=0.01,
+            h=0.03,
+            method="DOP853",
         )
 
     if system_name == "lorenz96":
         return lorenz96(n_timesteps, warmup=0, N=8, F=8.0, dF=0.01, h=0.01, x0=None)
 
     if system_name == "rossler":
-        return rossler(n_timesteps, a=0.2, b=0.2, c=5.7, x0=[1.0, 1.0, 1.0], h=0.01)
+        return rossler(
+            n_timesteps,
+            a=0.2,
+            b=0.2,
+            c=5.7,
+            x0=[1.0, 1.0, 1.0],
+            h=0.01,
+            method="DOP853",
+        )
 
     if system_name == "doublescroll":
         return doublescroll(
@@ -52,7 +61,13 @@ def _series_for_system(system_name: str):
 
     if system_name == "multiscroll":
         return multiscroll(
-            n_timesteps, a=36.0, b=3.0, c=20.0, x0=[0.1, 0.0, 0.0], h=0.01
+            n_timesteps,
+            a=36.0,
+            b=3.0,
+            c=20.0,
+            x0=[0.1, 0.0, 0.0],
+            h=0.01,
+            method="DOP853",
         )
 
     if system_name == "rabinovich_fabrikant":

@@ -3,7 +3,7 @@ use std::{env, process::Command};
 
 use crate::test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val;
 
-fn execute_dynamic_system_dataset_test(system_name: &str) -> Vec<f32> {
+fn execute_dynamic_system_dataset_test(system_name: &str) -> Vec<f64> {
     let current_dir = env::current_dir().expect("failed to get current directory");
     let project_root = current_dir
         .parent()
@@ -42,7 +42,7 @@ for x in dynamic_system_dataset_test(sys.argv[1]):
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .map(|line| {
-            line.parse::<f32>()
+            line.parse::<f64>()
                 .unwrap_or_else(|e| panic!("failed to parse python output '{line}': {e}"))
         })
         .collect()

@@ -6,7 +6,7 @@ use crate::{
     data::dataset::{
         dynamic_system::{
             config::{from_series, split_borders},
-            ivp_solve::{IvpMethod, IvpOptions, solve_ivp},
+            ivp_solve::{solve_ivp, IvpMethod, IvpOptions},
         },
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,

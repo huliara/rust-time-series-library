@@ -23,9 +23,9 @@ pub struct LorenzConfig {
     pub rho: f64,
     #[arg(long, default_value_t = 10.0)]
     pub sigma: f64,
-    #[arg(long, default_value_t = 2.6666666666666665)]
+    #[arg(long, default_value_t = 8.0/3.0)]
     pub beta: f64,
-    #[arg(long, default_value_t = 0.01)]
+    #[arg(long, default_value_t = 0.03)]
     pub h: f64,
     #[arg(long, num_args = 3, default_values_t = [1.0, 1.0, 1.0])]
     pub initial_value: Vec<f64>,
@@ -109,7 +109,7 @@ pub fn lorenz(
     };
     let dt_internal = dt_eval / 100.0;
     let options = IvpOptions {
-        method: IvpMethod::Rk45,
+        method: IvpMethod::Dop853,
         t_eval: Some(t_eval),
         first_step: Some(dt_internal),
         max_step: dt_internal,
@@ -149,17 +149,10 @@ mod tests {
     #[test]
     fn test_lorenz_dataset_against_python() {
         let n_timesteps = 400;
-        let series = lorenz(
-            n_timesteps,
-            28.0,
-            10.0,
-            2.6666666666666665,
-            [1.0, 1.0, 1.0],
-            0.01,
-        )
-        .into_iter()
-        .map(|v| v.to_vec())
-        .collect::<Vec<_>>();
+        let series = lorenz(n_timesteps, 28.0, 10.0, 8.0 / 3.0, [1.0, 1.0, 1.0], 0.03)
+            .into_iter()
+            .map(|v| v.to_vec())
+            .collect::<Vec<_>>();
 
         let system_name = "lorenz";
         assert_dynamic_system_series(system_name, series);
