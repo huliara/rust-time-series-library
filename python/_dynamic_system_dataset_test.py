@@ -31,6 +31,8 @@ def _series_for_system(system_name: str):
             x0=[1.0, 1.0, 1.0],
             h=0.03,
             method="DOP853",
+            rtol=1e-8,
+            atol=1e-10,
         )
 
     if system_name == "lorenz96":
@@ -45,6 +47,8 @@ def _series_for_system(system_name: str):
             x0=[1.0, 1.0, 1.0],
             h=0.01,
             method="DOP853",
+            rtol=1e-8,
+            atol=1e-10,
         )
 
     if system_name == "doublescroll":
@@ -68,6 +72,8 @@ def _series_for_system(system_name: str):
             x0=[0.1, 0.0, 0.0],
             h=0.01,
             method="DOP853",
+            rtol=1e-8,
+            atol=1e-10,
         )
 
     if system_name == "rabinovich_fabrikant":

@@ -4,16 +4,29 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::{
-            config::{from_series, split_borders},
-            ivp_solve::{solve_ivp, IvpMethod, IvpOptions},
-        },
+        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
 use burn::prelude::Backend;
+use ode_solvers::{Dop853, System, Vector3};
+
+struct LorenzSystem {
+    rho: f64,
+    sigma: f64,
+    beta: f64,
+}
+
+impl System<f64, Vector3<f64>> for LorenzSystem {
+    fn system(&self, _t: f64, y: &Vector3<f64>, dy: &mut Vector3<f64>) {
+        let d = lorenz_diff([y[0], y[1], y[2]], self.rho, self.sigma, self.beta);
+        dy[0] = d[0];
+        dy[1] = d[1];
+        dy[2] = d[2];
+    }
+}
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct LorenzConfig {
@@ -93,48 +106,21 @@ pub fn lorenz(
     if n_timesteps == 0 {
         return Vec::new();
     }
-
-    let t_max = n_timesteps as f64 * h;
-    let t_eval = if n_timesteps == 1 {
-        vec![0.0]
-    } else {
-        (0..n_timesteps)
-            .map(|i| i as f64 * t_max / (n_timesteps as f64 - 1.0))
-            .collect::<Vec<_>>()
-    };
-    let dt_eval = if n_timesteps == 1 {
-        h
-    } else {
-        t_max / (n_timesteps as f64 - 1.0)
-    };
-    let dt_internal = dt_eval / 100.0;
-    let options = IvpOptions {
-        method: IvpMethod::Dop853,
-        t_eval: Some(t_eval),
-        first_step: Some(dt_internal),
-        max_step: dt_internal,
-        min_step: dt_internal * 1e-6,
-        rtol: 1e-8,
-        atol: 1e-10,
-    };
-
-    let result = solve_ivp(
-        |_t, y| {
-            let d = lorenz_diff([y[0], y[1], y[2]], rho, sigma, beta);
-            vec![d[0], d[1], d[2]]
-        },
-        (0.0, t_max),
-        vec![x0[0], x0[1], x0[2]],
-        options,
-    )
-    .expect("Failed to solve lorenz IVP");
-
-    if !result.success {
-        panic!("Failed to solve lorenz IVP: {}", result.message);
+    if n_timesteps == 1 {
+        return vec![x0];
     }
 
-    result
-        .y
+    let t_max = n_timesteps as f64 * h;
+    let dt_eval = t_max / (n_timesteps as f64 - 1.0);
+    let system = LorenzSystem { rho, sigma, beta };
+    let y0 = Vector3::new(x0[0], x0[1], x0[2]);
+    let mut stepper = Dop853::new(system, 0.0, t_max, dt_eval, y0, 1e-8, 1e-10);
+    stepper
+        .integrate()
+        .unwrap_or_else(|e| panic!("Failed to solve lorenz IVP: {e}"));
+
+    stepper
+        .y_out()
         .into_iter()
         .map(|v| [v[0], v[1], v[2]])
         .collect::<Vec<_>>()

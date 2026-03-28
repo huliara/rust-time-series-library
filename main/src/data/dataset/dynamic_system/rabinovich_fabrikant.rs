@@ -6,7 +6,6 @@ use crate::{
     data::dataset::{
         dynamic_system::{
             config::{from_series, split_borders},
-            ivp_solve::{IvpMethod, IvpOptions, solve_ivp},
         },
         init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
         init_time_series::InitTimeSeries,
@@ -14,6 +13,21 @@ use crate::{
     },
 };
 use burn::prelude::Backend;
+use ode_solvers::{Dop853, System, Vector3};
+
+struct RabinovichFabrikantSystem {
+    alpha: f64,
+    gamma: f64,
+}
+
+impl System<f64, Vector3<f64>> for RabinovichFabrikantSystem {
+    fn system(&self, _t: f64, y: &Vector3<f64>, dy: &mut Vector3<f64>) {
+        let d = rabinovich_fabrikant_diff([y[0], y[1], y[2]], self.alpha, self.gamma);
+        dy[0] = d[0];
+        dy[1] = d[1];
+        dy[2] = d[2];
+    }
+}
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct RabinovichFabrikantConfig {
@@ -97,47 +111,21 @@ pub fn rabinovich_fabrikant(
     if n_timesteps == 0 {
         return Vec::new();
     }
-
-    let t_max = n_timesteps as f64 * h;
-    let t_eval = if n_timesteps == 1 {
-        vec![0.0]
-    } else {
-        (0..n_timesteps)
-            .map(|i| i as f64 * t_max / (n_timesteps as f64 - 1.0))
-            .collect::<Vec<_>>()
-    };
-    let dt_eval = if n_timesteps == 1 {
-        h
-    } else {
-        t_max / (n_timesteps as f64 - 1.0)
-    };
-    let options = IvpOptions {
-        method: IvpMethod::Rk45,
-        t_eval: Some(t_eval),
-        first_step: Some(dt_eval),
-        max_step: dt_eval,
-        min_step: dt_eval * 1e-6,
-        rtol: 1e-8,
-        atol: 1e-10,
-    };
-
-    let result = solve_ivp(
-        |_t, y| {
-            let d = rabinovich_fabrikant_diff([y[0], y[1], y[2]], alpha, gamma);
-            vec![d[0], d[1], d[2]]
-        },
-        (0.0, t_max),
-        vec![x0[0], x0[1], x0[2]],
-        options,
-    )
-    .expect("Failed to solve rabinovich_fabrikant IVP");
-
-    if !result.success {
-        panic!("Failed to solve rabinovich_fabrikant IVP: {}", result.message);
+    if n_timesteps == 1 {
+        return vec![x0];
     }
 
-    result
-        .y
+    let t_max = n_timesteps as f64 * h;
+    let dt_eval = t_max / (n_timesteps as f64 - 1.0);
+    let system = RabinovichFabrikantSystem { alpha, gamma };
+    let y0 = Vector3::new(x0[0], x0[1], x0[2]);
+    let mut stepper = Dop853::new(system, 0.0, t_max, dt_eval, y0, 1e-8, 1e-10);
+    stepper
+        .integrate()
+        .unwrap_or_else(|e| panic!("Failed to solve rabinovich_fabrikant IVP: {e}"));
+
+    stepper
+        .y_out()
         .into_iter()
         .map(|v| [v[0], v[1], v[2]])
         .collect::<Vec<_>>()

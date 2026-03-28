@@ -5,15 +5,29 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::{
-            config::{from_series, split_borders},
-            ivp_solve::{solve_ivp, IvpMethod, IvpOptions},
-        },
+        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
 };
+use ode_solvers::{DVector, Dop853, System};
+
+struct Lorenz96System {
+    forcing: f64,
+}
+
+impl System<f64, DVector<f64>> for Lorenz96System {
+    fn system(&self, _t: f64, y: &DVector<f64>, dy: &mut DVector<f64>) {
+        let n = y.len();
+        for i in 0..n {
+            let ip1 = (i + 1) % n;
+            let im1 = (i + n - 1) % n;
+            let im2 = (i + n - 2) % n;
+            dy[i] = (y[ip1] - y[im2]) * y[im1] - y[i] + self.forcing;
+        }
+    }
+}
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct Lorenz96Config {
     #[arg(long, default_value_t = 10000)]
@@ -88,18 +102,6 @@ impl InitDynamicSystem for Lorenz96Config {
     }
 }
 
-fn lorenz96_diff(state: &[f64], f: f64) -> Vec<f64> {
-    let n = state.len();
-    let mut ds = vec![0.0_f64; n];
-    for i in 0..n {
-        let ip1 = (i + 1) % n;
-        let im1 = (i + n - 1) % n;
-        let im2 = (i + n - 2) % n;
-        ds[i] = (state[ip1] - state[im2]) * state[im1] - state[i] + f;
-    }
-    ds
-}
-
 pub fn lorenz96(
     n_timesteps: usize,
     warmup: usize,
@@ -130,38 +132,27 @@ pub fn lorenz96(
         init
     };
 
-    let t_max = (warmup + n_timesteps) as f64 * h;
-    let span_end = t_max * h;
-    let t_eval = if n_timesteps == 1 {
-        vec![0.0]
-    } else {
-        (0..n_timesteps)
-            .map(|i| i as f64 * span_end / (n_timesteps as f64 - 1.0))
-            .collect::<Vec<_>>()
-    };
-    let dt_eval = if n_timesteps == 1 {
-        h
-    } else {
-        span_end / (n_timesteps as f64 - 1.0)
-    };
-    let options = IvpOptions {
-        method: IvpMethod::Dop853,
-        t_eval: Some(t_eval),
-        first_step: Some(dt_eval),
-        max_step: dt_eval,
-        min_step: dt_eval * 1e-6,
-        rtol: 1e-8,
-        atol: 1e-10,
-    };
-
-    let result = solve_ivp(|_t, y| lorenz96_diff(y, f), (0.0, span_end), state, options)
-        .map_err(|e| format!("Failed to solve lorenz96 IVP: {e}"))?;
-
-    if !result.success {
-        return Err(format!("Failed to solve lorenz96 IVP: {}", result.message));
+    if n_timesteps == 1 {
+        return Ok(vec![state]);
     }
 
-    Ok(result.y.into_iter().skip(warmup).collect::<Vec<_>>())
+    let t_max = (warmup + n_timesteps) as f64 * h;
+    let span_end = t_max * h;
+    let dt_eval = span_end / (n_timesteps as f64 - 1.0);
+    let system = Lorenz96System { forcing: f };
+    let y0 = DVector::from_vec(state);
+    let mut stepper = Dop853::new(system, 0.0, span_end, dt_eval, y0, 1e-8, 1e-10);
+    stepper
+        .integrate()
+        .map_err(|e| format!("Failed to solve lorenz96 IVP: {e}"))?;
+
+    let values = stepper
+        .y_out()
+        .iter()
+        .map(|v| v.iter().copied().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    Ok(values.into_iter().skip(warmup).collect::<Vec<_>>())
 }
 
 #[cfg(test)]
