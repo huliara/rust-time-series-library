@@ -132,13 +132,15 @@ pub fn mackey_glass(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::mackey_glass;
 
     #[test]
     fn test_mackey_glass_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = mackey_glass(n_timesteps, 0, 0.2, 0.1, 10, 1.2, 0.1, None, None)
             .unwrap()
             .into_iter()

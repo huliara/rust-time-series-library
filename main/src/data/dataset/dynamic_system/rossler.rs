@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::{
-            config::{from_series, split_borders},
-        },
+        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -128,13 +126,15 @@ pub fn rossler(n_timesteps: usize, a: f64, b: f64, c: f64, x0: [f64; 3], h: f64)
 #[cfg(test)]
 mod tests {
 
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::rossler;
 
     #[test]
     fn test_rossler_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = rossler(n_timesteps, 0.2, 0.2, 5.7, [1.0, 1.0, 1.0], 0.01)
             .into_iter()
             .map(|v| v.to_vec())

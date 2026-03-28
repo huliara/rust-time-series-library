@@ -157,13 +157,15 @@ pub fn lorenz96(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::lorenz96;
 
     #[test]
     fn test_lorenz96_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = lorenz96(n_timesteps, 0, 8, 8.0, 0.01, 0.01, None).unwrap();
 
         let system_name = "lorenz96";

@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::{
-            config::{from_series, split_borders},
-        },
+        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -25,7 +23,14 @@ struct DoubleScrollSystem {
 
 impl System<f64, Vector3<f64>> for DoubleScrollSystem {
     fn system(&self, _t: f64, y: &Vector3<f64>, dy: &mut Vector3<f64>) {
-        let d = doublescroll_diff([y[0], y[1], y[2]], self.r1, self.r2, self.r4, self.ir, self.beta);
+        let d = doublescroll_diff(
+            [y[0], y[1], y[2]],
+            self.r1,
+            self.r2,
+            self.r4,
+            self.ir,
+            self.beta,
+        );
         dy[0] = d[0];
         dy[1] = d[1];
         dy[2] = d[2];
@@ -157,13 +162,15 @@ pub fn doublescroll(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::doublescroll;
 
     #[test]
     fn test_doublescroll_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = doublescroll(
             n_timesteps,
             1.2,

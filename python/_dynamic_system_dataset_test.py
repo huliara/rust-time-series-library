@@ -16,7 +16,7 @@ from reservoirpy.datasets import (
 
 
 def _series_for_system(system_name: str):
-    n_timesteps = 400
+    n_timesteps = 500
 
     if system_name == "logistic_map":
         return logistic_map(n_timesteps, r=3.9, x0=0.1)

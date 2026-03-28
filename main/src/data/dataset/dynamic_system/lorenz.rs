@@ -128,13 +128,15 @@ pub fn lorenz(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::lorenz;
 
     #[test]
     fn test_lorenz_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = lorenz(n_timesteps, 28.0, 10.0, 8.0 / 3.0, [1.0, 1.0, 1.0], 0.03)
             .into_iter()
             .map(|v| v.to_vec())

@@ -4,10 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::{
-            config::{from_series, split_borders},
-        },
-        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        dynamic_system::config::{from_series, split_borders},
+        init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
@@ -133,13 +131,15 @@ pub fn rabinovich_fabrikant(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::rabinovich_fabrikant;
 
     #[test]
     fn test_rabinovich_fabrikant_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = rabinovich_fabrikant(n_timesteps, 0.14, 0.1, [0.1, 0.1, 0.1], 0.005)
             .into_iter()
             .map(|v| v.to_vec())

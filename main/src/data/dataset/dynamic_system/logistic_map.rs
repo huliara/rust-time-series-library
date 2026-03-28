@@ -76,13 +76,15 @@ pub fn logistic_map(n_timesteps: usize, r: f64, x0: f64) -> Result<Vec<[f64; 1]>
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::logistic_map;
 
     #[test]
     fn test_logistic_map_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = logistic_map(n_timesteps, 3.9, 0.1)
             .unwrap()
             .into_iter()

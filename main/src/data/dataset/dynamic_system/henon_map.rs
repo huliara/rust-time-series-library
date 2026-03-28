@@ -84,13 +84,15 @@ pub fn henon_map(n_timesteps: usize, a: f64, b: f64, x0: [f64; 2]) -> Vec<[f64; 
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::henon_map;
 
     #[test]
     fn test_henon_map_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let series = henon_map(n_timesteps, 1.4, 0.3, [0.0, 0.0])
             .into_iter()
             .map(|v| v.to_vec())

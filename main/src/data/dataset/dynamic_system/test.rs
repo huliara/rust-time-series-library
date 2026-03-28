@@ -3,6 +3,8 @@ use std::{env, process::Command};
 
 use crate::test_utils::assert_tensor_shape_value::assert_tensor_shape_and_val;
 
+pub const TEST_STEP_SIZE: usize = 500;
+
 fn execute_dynamic_system_dataset_test(system_name: &str) -> Vec<f64> {
     let current_dir = env::current_dir().expect("failed to get current directory");
     let project_root = current_dir

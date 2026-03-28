@@ -109,13 +109,15 @@ pub fn narma(
 
 #[cfg(test)]
 mod tests {
-    use crate::data::dataset::dynamic_system::test::assert_dynamic_system_series;
+    use crate::data::dataset::dynamic_system::test::{
+        assert_dynamic_system_series, TEST_STEP_SIZE,
+    };
 
     use super::narma;
 
     #[test]
     fn test_narma_dataset_against_python() {
-        let n_timesteps = 400;
+        let n_timesteps = TEST_STEP_SIZE;
         let order = 10;
         let x0 = vec![0.0_f64; order];
         let u = (0..(n_timesteps + order))
