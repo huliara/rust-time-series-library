@@ -1,6 +1,6 @@
 use plotters::prelude::*;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Read loss values from Loss.log files in a directory
 fn read_loss_from_file(loss_file_path: &Path) -> Option<f32> {
@@ -25,8 +25,6 @@ fn read_loss_from_file(loss_file_path: &Path) -> Option<f32> {
         Err(_) => None,
     }
 }
-
-/// Read all loss values for train or valid from epoch directories
 
 fn read_losses_for_phase(phase_dir: &Path) -> Option<Vec<f32>> {
     if !phase_dir.exists() {
@@ -179,88 +177,5 @@ fn create_loss_plot(
         .draw()?;
 
     root.present()?;
-    Ok(())
-}
-
-pub fn plot_loss_for_dataset(
-    dataset_dir: &str,
-    output_base_dir: Option<&str>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let dataset_path = Path::new(dataset_dir);
-
-    if !dataset_path.exists() {
-        return Err(format!("Dataset directory not found: {}", dataset_dir).into());
-    }
-
-    let mut exp_dirs = Vec::new();
-    for entry in fs::read_dir(dataset_path)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() && (path.join("train").exists() || path.join("valid").exists()) {
-            exp_dirs.push(path);
-        }
-    }
-
-    if exp_dirs.is_empty() {
-        println!("No experiment directories found in {}", dataset_dir);
-        return Ok(());
-    }
-
-    println!("Found {} experiment directory(ies)", exp_dirs.len());
-
-    for exp_dir in exp_dirs {
-        if let Err(e) = plot_loss_for_experiment(exp_dir.to_str().unwrap()) {
-            eprintln!("Error processing {}: {}", exp_dir.display(), e);
-        }
-    }
-
-    Ok(())
-}
-
-/// Process all datasets in a model directory
-
-pub fn plot_loss_for_model(
-    model_dir: &str,
-    output_base_dir: Option<&str>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let model_path = Path::new(model_dir);
-
-    if !model_path.exists() {
-        return Err(format!("Model directory not found: {}", model_dir).into());
-    }
-
-    let mut dataset_dirs = Vec::new();
-    for entry in fs::read_dir(model_path)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            dataset_dirs.push(path);
-        }
-    }
-
-    println!("Processing {} dataset(s)", dataset_dirs.len());
-
-    for dataset_dir in dataset_dirs {
-        let dataset_name = dataset_dir
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "dataset".to_string());
-
-        println!("\nProcessing dataset: {}", dataset_name);
-
-        let output_dir = if let Some(base_dir) = output_base_dir {
-            let output_path = Path::new(base_dir).join(&dataset_name);
-            fs::create_dir_all(&output_path).ok();
-            Some(output_path.to_string_lossy().to_string())
-        } else {
-            None
-        };
-
-        if let Err(e) = plot_loss_for_dataset(dataset_dir.to_str().unwrap(), output_dir.as_deref())
-        {
-            eprintln!("Error processing {}: {}", dataset_dir.display(), e);
-        }
-    }
-
     Ok(())
 }
