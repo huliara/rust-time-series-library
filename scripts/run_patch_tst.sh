@@ -19,7 +19,7 @@ DATA_CMDS=(
     "logistic-map --n-timesteps $N_TIMESTEPS"
     "henon-map --n-timesteps $N_TIMESTEPS"
     "lorenz --n-timesteps $N_TIMESTEPS --h $H"
-    "lorenz96 --total-steps $N_TIMESTEPS --dt $DT --h $H"
+    "lorenz96 --n-timesteps $N_TIMESTEPS --dt $DT --h $H"
     "rossler --n-timesteps $N_TIMESTEPS --h $H"
     "double-scroll --n-timesteps $N_TIMESTEPS --h $H"
     "multi-scroll --n-timesteps $N_TIMESTEPS --h $H"

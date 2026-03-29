@@ -31,8 +31,8 @@ impl System<f64, DVector<f64>> for Lorenz96System {
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct Lorenz96Config {
     #[arg(long, default_value_t = 10000)]
-    pub total_steps: usize,
-    #[arg(long, default_value_t = 36)]
+    pub n_timesteps: usize,
+    #[arg(long, default_value_t = 5)]
     pub dimention: usize,
     #[arg(long, default_value_t = 8.0)]
     pub f: f64,
@@ -47,7 +47,7 @@ pub struct Lorenz96Config {
 impl Default for Lorenz96Config {
     fn default() -> Self {
         Self {
-            total_steps: 10000,
+            n_timesteps: 10000,
             dimention: 36,
             f: 8.0,
             dt: 0.01,
@@ -62,7 +62,7 @@ impl std::fmt::Display for Lorenz96Config {
         write!(
             f,
             "lorenz96_nt{}_dim{}_f{:.2}",
-            self.total_steps, self.dimention, self.f
+            self.n_timesteps, self.dimention, self.f
         )
     }
 }
@@ -89,7 +89,7 @@ impl InitDynamicSystem for Lorenz96Config {
             Some(self.initial_value.clone())
         };
         let series = lorenz96(
-            self.total_steps,
+            self.n_timesteps,
             0,
             self.dimention,
             self.f,

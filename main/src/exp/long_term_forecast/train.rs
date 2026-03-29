@@ -130,13 +130,6 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 let grads = loss.backward();
                 let grads = GradientsParams::from_grads(grads, &model);
                 model = optim.step(exp_config.learning_rate, model, grads);
-
-                if iteration % 50 == 0 {
-                    println!(
-                        "[Train - Epoch {} - Iteration {}] Loss {:.6}",
-                        epoch, iteration, loss_scalar
-                    );
-                }
             }
 
             let mut valid_loss_sum = 0.0f64;
@@ -171,13 +164,6 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
                 writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
                     .expect("Failed to write validation loss log line");
-
-                if iteration % 50 == 0 {
-                    println!(
-                        "[Valid - Epoch {} - Iteration {}] Loss {:.6}",
-                        epoch, iteration, loss_scalar
-                    );
-                }
             }
 
             let train_avg = if train_steps > 0 {
