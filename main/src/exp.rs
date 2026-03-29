@@ -1,11 +1,12 @@
 pub mod long_term_forecast;
 pub mod loss;
+pub mod plot_loss;
 use burn::tensor::backend::AutodiffBackend;
 use std::time::Instant;
 
 use crate::{
     args::{data::DataCommand, model::ModelConfig, time_lengths::TimeLengths, RootArgs},
-    exp::long_term_forecast::train::ExpConfig,
+    exp::{long_term_forecast::train::ExpConfig, plot_loss::plot_loss_for_experiment},
 };
 
 use lib::env_path::get_result_root_path;
@@ -109,6 +110,7 @@ pub trait Exp<B: AutodiffBackend>: Train<B> + Infer<B> {
             let elapsed = train_start.elapsed();
             println!("Training finished in {:.3} seconds", elapsed.as_secs_f64());
         }
+        plot_loss_for_experiment(&result_path).expect("Failed to plot loss curves");
         self.infer(
             &result_path,
             args.exp_config.clone(),
