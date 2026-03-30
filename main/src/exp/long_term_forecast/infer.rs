@@ -62,7 +62,7 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         let predicts = Tensor::cat(_predicts, 0);
         let futures = Tensor::cat(_futures, 0);
         let error = predicts.clone() - futures.clone();
-        sample_plots(contexts, predicts, futures.clone(), 16, &test_dir);
+        sample_plots(contexts, predicts, futures.clone(), 12, &test_dir);
         save_results(exp_root_path, error, futures);
     }
 }
