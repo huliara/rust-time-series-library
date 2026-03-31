@@ -6,8 +6,7 @@ use std::f64::consts::PI;
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders},
-        init_dynamic_system::InitDynamicSystem as InitDynamicSystem,
+        init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
     },
@@ -35,14 +34,7 @@ impl std::fmt::Display for KuramotoSivashinskyConfig {
     }
 }
 
-impl InitTimeSeries for KuramotoSivashinskyConfig {
-    fn split_borders(
-        lengths: &TimeLengths,
-        total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize)) {
-        split_borders(lengths, total_rows)
-    }
-}
+impl InitTimeSeries for KuramotoSivashinskyConfig {}
 
 impl InitDynamicSystem for KuramotoSivashinskyConfig {
     fn init<B: Backend>(
@@ -54,7 +46,7 @@ impl InitDynamicSystem for KuramotoSivashinskyConfig {
         let series =
             kuramoto_sivashinsky(self.n_timesteps, self.warmup, self.n, self.m, None, self.h)
                 .expect("Failed to generate kuramoto_sivashinsky series");
-        from_series(series, lengths, flag, device)
+        Self::from_series(series, lengths, flag, device)
     }
 }
 

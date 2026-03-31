@@ -1,7 +1,7 @@
 pub mod _kuramoto_sivashinsky;
 pub mod _kuramoto_sivashinsky_etdrk4;
 pub mod _mg_rk4;
-pub mod config;
+pub mod bool_transform;
 pub mod doublescroll;
 pub mod henon_map;
 pub mod kuramoto_sivashinsky;

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -67,14 +66,7 @@ impl std::fmt::Display for Lorenz96Config {
     }
 }
 
-impl InitTimeSeries for Lorenz96Config {
-    fn split_borders(
-        lengths: &TimeLengths,
-        total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize)) {
-        split_borders(lengths, total_rows)
-    }
-}
+impl InitTimeSeries for Lorenz96Config {}
 
 impl InitDynamicSystem for Lorenz96Config {
     fn init<B: Backend>(
@@ -98,7 +90,7 @@ impl InitDynamicSystem for Lorenz96Config {
             x0,
         )
         .expect("Failed to generate lorenz96 series");
-        from_series(series, lengths, flag, device)
+        Self::from_series(series, lengths, flag, device)
     }
 }
 

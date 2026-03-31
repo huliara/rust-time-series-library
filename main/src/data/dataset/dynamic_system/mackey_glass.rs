@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     args::time_lengths::TimeLengths,
     data::dataset::{
-        dynamic_system::config::{from_series, split_borders},
         init_dynamic_system::InitDynamicSystem,
         init_time_series::InitTimeSeries,
         time_series_dataset::{ExpFlag, TimeSeriesDataset},
@@ -45,14 +44,7 @@ impl std::fmt::Display for MackeyGlassConfig {
     }
 }
 
-impl InitTimeSeries for MackeyGlassConfig {
-    fn split_borders(
-        lengths: &TimeLengths,
-        total_rows: usize,
-    ) -> ((usize, usize, usize), (usize, usize, usize)) {
-        split_borders(lengths, total_rows)
-    }
-}
+impl InitTimeSeries for MackeyGlassConfig {}
 
 impl InitDynamicSystem for MackeyGlassConfig {
     fn init<B: Backend>(
@@ -76,7 +68,7 @@ impl InitDynamicSystem for MackeyGlassConfig {
         .into_iter()
         .map(|v| v.to_vec())
         .collect::<Vec<_>>();
-        from_series(series, lengths, flag, device)
+        Self::from_series(series, lengths, flag, device)
     }
 }
 
