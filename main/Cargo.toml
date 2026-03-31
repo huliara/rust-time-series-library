@@ -24,6 +24,7 @@ serde_yaml = "0.9.34"
 strum = { version = "0.28.0", features = ["derive"] }
 lib={path="../lib"}
 ode_solvers = "0.6.1"
+itertools = "0.14.0"
 
 [dev-dependencies]
 tempfile = "3.26.0"

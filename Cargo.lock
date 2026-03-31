@@ -4279,6 +4279,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
+ "itertools 0.14.0",
  "lib",
  "ndarray 0.16.1",
  "num-traits",

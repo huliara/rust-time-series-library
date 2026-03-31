@@ -1,6 +1,7 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::{s, Shape, Tensor, TensorData};
 use clap::{Args, ValueEnum};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -147,7 +148,8 @@ impl<B: Backend> Ngrc<B> {
         let n_dim = x_shape.dims[1];
         let lin_dim = n_dim * k;
 
-        let monom_idx = combinations_with_replacement(lin_dim, p);
+        let monom_idx = (0..lin_dim).combinations_with_replacement(p);
+
         let nlin_dim = monom_idx.len();
 
         let win_dim = (k - 1) * s_stride + 1;
@@ -179,7 +181,17 @@ impl<B: Backend> Ngrc<B> {
                 .flatten(0, -1);
 
             // Extract nonlinear features
-            let mut nlin_feat = lin_feat.clone().slice(s![monom_idx, ..]).prod_dim(1);
+            let mut nlin_feat: Tensor<B, 2> =
+                Tensor::zeros(Shape::new([1, nlin_dim]), &self.device);
+            for (j, ids) in monom_idx.enumerate() {
+                nlin_feat.slice_assign(
+                    s![j],
+                    lin_feat
+                        .clone()
+                        .select(0, Tensor::from(ids.clone()))
+                        .prod_dim(0),
+                );
+            }
 
             // Store features
             lin_features.slice_assign(s![i, ..], lin_features);
