@@ -3,6 +3,7 @@ use burn::{
     Tensor,
 };
 
+use crate::exp::long_term_forecast::save_results::plot_orbit_map::plot_orbit_maps;
 use crate::exp::long_term_forecast::save_results::plot_prediction::{
     plot_multi_feature_prediction, plot_single_feature_prediction,
 };
@@ -74,5 +75,6 @@ pub fn sample_plots<B: Backend>(
         );
         plot_multi_feature_return_map(test_dir, sample_id, &pred_multi);
         plot_single_feature_return_map(test_dir, sample_id, &pred_multi[0]);
+        plot_orbit_maps(test_dir, sample_id, &pred_multi);
     }
 }
