@@ -4,10 +4,10 @@ use std::fmt::Debug;
 
 use crate::data::dataset::{
     dynamic_system::{
-        doublescroll::DoubleScrollConfig, henon_map::HenonMapConfig,
-        kuramoto_sivashinsky::KuramotoSivashinskyConfig, logistic_map::LogisticMapConfig,
-        lorenz::LorenzConfig, lorenz96::Lorenz96Config, mackey_glass::MackeyGlassConfig,
-        multiscroll::MultiScrollConfig, narma::NarmaConfig,
+        bool_transform::BoolTransformConfig, doublescroll::DoubleScrollConfig,
+        henon_map::HenonMapConfig, kuramoto_sivashinsky::KuramotoSivashinskyConfig,
+        logistic_map::LogisticMapConfig, lorenz::LorenzConfig, lorenz96::Lorenz96Config,
+        mackey_glass::MackeyGlassConfig, multiscroll::MultiScrollConfig, narma::NarmaConfig,
         rabinovich_fabrikant::RabinovichFabrikantConfig, rossler::RosslerConfig,
     },
     real_time_series::{etth1::Etth1Config, exchange::ExchangeConfig},
@@ -28,6 +28,7 @@ pub enum DataCommand {
     MackeyGlass(MackeyGlassConfig),
     Narma(NarmaConfig),
     KuramotoSivashinsky(KuramotoSivashinskyConfig),
+    BoolTransform(BoolTransformConfig),
 }
 
 impl Default for DataCommand {
@@ -52,6 +53,7 @@ impl DataCommand {
             DataCommand::MackeyGlass(_) => 1,
             DataCommand::Narma(_) => 1,
             DataCommand::KuramotoSivashinsky(cmd) => cmd.n,
+            DataCommand::BoolTransform(_) => 1,
         }
     }
 
@@ -70,6 +72,7 @@ impl DataCommand {
             DataCommand::MackeyGlass(cmd) => cmd.to_string(),
             DataCommand::Narma(cmd) => cmd.to_string(),
             DataCommand::KuramotoSivashinsky(cmd) => cmd.to_string(),
+            DataCommand::BoolTransform(cmd) => cmd.to_string(),
         }
     }
     pub fn validate_targets_match_first_train_feature(&self) -> Result<(), String> {
@@ -117,6 +120,7 @@ impl DataCommand {
             DataCommand::MackeyGlass(_) => Ok(()),
             DataCommand::Narma(_) => Ok(()),
             DataCommand::KuramotoSivashinsky(_) => Ok(()),
+            DataCommand::BoolTransform(_) => Ok(()),
         }
     }
 }

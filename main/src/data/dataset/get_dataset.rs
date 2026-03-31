@@ -33,5 +33,6 @@ pub fn get_dataset<B: Backend>(
         DataCommand::KuramotoSivashinsky(data_command) => {
             data_command.init::<B>(lengths, flag, device)
         }
+        DataCommand::BoolTransform(data_command) => data_command.init::<B>(lengths, flag, device),
     }
 }
