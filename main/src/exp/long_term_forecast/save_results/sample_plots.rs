@@ -75,6 +75,6 @@ pub fn sample_plots<B: Backend>(
         );
         plot_multi_feature_return_map(test_dir, sample_id, &pred_multi);
         plot_single_feature_return_map(test_dir, sample_id, &pred_multi[0]);
-        plot_orbit_maps(test_dir, sample_id, &pred_multi);
+        plot_orbit_maps(test_dir, sample_id, &context_multi, &pred_multi);
     }
 }

@@ -160,7 +160,6 @@ pub fn plot_multi_feature_prediction_in_dir(
         .unwrap();
 
     root.present().unwrap();
-    println!("Saved plot to {}", file_name);
 }
 
 pub fn plot_multi_feature_prediction(

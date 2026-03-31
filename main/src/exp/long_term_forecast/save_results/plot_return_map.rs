@@ -82,7 +82,6 @@ pub fn plot_multi_feature_return_map_in_dir(
         .unwrap();
 
     root.present().unwrap();
-    println!("Saved return-map plot to {}", file_name);
 }
 
 pub fn plot_multi_feature_return_map(
