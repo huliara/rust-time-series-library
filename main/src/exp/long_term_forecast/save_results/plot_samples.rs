@@ -11,7 +11,7 @@ use crate::exp::long_term_forecast::save_results::plot_return_map::{
     plot_multi_feature_return_map, plot_single_feature_return_map,
 };
 
-pub fn sample_plots<B: Backend>(
+pub fn plot_samples<B: Backend>(
     contexts: Tensor<B, 3>,
     predicts: Tensor<B, 3>,
     futures: Tensor<B, 3>,

@@ -131,7 +131,6 @@ pub fn plot_2d_orbit_in_dir(
         .unwrap();
 
     root.present().unwrap();
-    println!("Saved 2D orbit plot to {}", file_name);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -240,7 +239,6 @@ pub fn plot_3d_orbit_in_dir(
     }
 
     root.present().unwrap();
-    println!("Saved 3D orbit plot to {}", file_name);
 }
 
 pub fn plot_orbit_maps(

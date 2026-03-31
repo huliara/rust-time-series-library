@@ -5,7 +5,7 @@ use crate::{
         dataset::time_series_dataset::ExpFlag,
     },
     exp::{
-        long_term_forecast::{save_results::sample_plots::sample_plots, ForecastModel},
+        long_term_forecast::{save_results::plot_samples::plot_samples, ForecastModel},
         loss::barron_loss::BarronLoss,
         Train,
     },
@@ -206,7 +206,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
             let predicts = model.forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
 
             let num_plots = usize::min(5, contexts.dims()[0]);
-            sample_plots(contexts, predicts, futures, num_plots, &train_plot_dir);
+            plot_samples(contexts, predicts, futures, num_plots, &train_plot_dir);
         }
 
         model

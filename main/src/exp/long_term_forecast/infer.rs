@@ -5,7 +5,7 @@ use crate::{
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{
-            save_results::{sample_plots::sample_plots, save_metric::save_results},
+            save_results::{plot_samples::plot_samples, save_metric::save_results},
             train::ExpConfig,
             ForecastModel,
         },
@@ -62,7 +62,7 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
         let predicts = Tensor::cat(_predicts, 0);
         let futures = Tensor::cat(_futures, 0);
         let error = predicts.clone() - futures.clone();
-        sample_plots(contexts, predicts, futures.clone(), 12, &test_dir);
+        plot_samples(contexts, predicts, futures.clone(), 12, &test_dir);
         save_results(exp_root_path, error, futures);
     }
 }
