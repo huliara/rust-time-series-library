@@ -1,7 +1,6 @@
 use burn::tensor::backend::Backend;
-use burn::tensor::{Tensor, TensorData};
+use burn::tensor::{s, Shape, Tensor, TensorData};
 use clap::{Args, ValueEnum};
-use ndarray::{s, Array2};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -57,12 +56,8 @@ impl<B: Backend> Ngrc<B> {
             return Err("train_data must have at least 2 timesteps".to_string());
         }
 
-        let x = train_data
-            .clone()
-            .slice([0..shape.dims[0] - 1, 0..shape.dims[1]]);
-        let y_next = train_data
-            .clone()
-            .slice([1..shape.dims[0], 0..shape.dims[1]]);
+        let x = train_data.clone().slice(s![0..shape.dims[0] - 1, ..]);
+        let y_next = train_data.clone().slice(s![1..shape.dims[0], ..]);
         let dtrain = y_next - x.clone();
 
         let (lin_features, nlin_features, _) = self.nvar(&x, None)?;
@@ -137,11 +132,8 @@ impl<B: Backend> Ngrc<B> {
         window: Option<Tensor<B, 2>>,
     ) -> Result<(Tensor<B, 2>, Tensor<B, 2>, Tensor<B, 2>), String> {
         // Convert input tensor to ndarray for processing
-        let x_data = x.clone().into_data().convert::<f32>();
-        let x_vec = x_data.as_slice::<f32>().unwrap_or(&[]).to_vec();
+
         let x_shape = x.shape();
-        let x_ndarray = Array2::from_shape_vec([x_shape.dims[0], x_shape.dims[1]], x_vec)
-            .map_err(|e| format!("Failed to create ndarray: {}", e))?;
 
         let k = self.config.delay;
         let s_stride = self.config.stride;
@@ -151,8 +143,8 @@ impl<B: Backend> Ngrc<B> {
             return Err("delay/stride/poly_order must be >= 1".to_string());
         }
 
-        let n_steps = x_ndarray.nrows();
-        let n_dim = x_ndarray.ncols();
+        let n_steps = x_shape.dims[0];
+        let n_dim = x_shape.dims[1];
         let lin_dim = n_dim * k;
 
         let monom_idx = combinations_with_replacement(lin_dim, p);
@@ -161,8 +153,6 @@ impl<B: Backend> Ngrc<B> {
         let win_dim = (k - 1) * s_stride + 1;
 
         let mut win = if let Some(w) = window {
-            let w_data = w.clone().into_data().convert::<f32>();
-            let w_vec = w_data.as_slice::<f32>().unwrap_or(&[]).to_vec();
             let w_shape = w.shape();
             if w_shape.dims != [win_dim, n_dim] {
                 return Err(format!(
@@ -170,89 +160,34 @@ impl<B: Backend> Ngrc<B> {
                     win_dim, n_dim, w_shape.dims[0], w_shape.dims[1]
                 ));
             }
-            Array2::from_shape_vec([w_shape.dims[0], w_shape.dims[1]], w_vec)
-                .map_err(|e| format!("Failed to create window ndarray: {}", e))?
+            w
         } else {
-            Array2::<f32>::zeros((win_dim, n_dim))
+            Tensor::<B, 2>::zeros(Shape::new([win_dim, n_dim]), &self.device)
         };
 
-        let mut lin_features = Array2::<f32>::zeros((n_steps, lin_dim));
-        let mut nlin_features = Array2::<f32>::zeros((n_steps, nlin_dim));
+        let mut lin_features = Tensor::<B, 2>::zeros(Shape::new([n_steps, lin_dim]), &self.device);
+        let mut nlin_features =
+            Tensor::<B, 2>::zeros(Shape::new([n_steps, nlin_dim]), &self.device);
 
         for i in 0..n_steps {
-            // Shift window
-            for row in 0..(win_dim - 1) {
-                let next = win.slice(s![row + 1, ..]).to_owned();
-                win.slice_mut(s![row, ..]).assign(&next);
-            }
-
-            // Add new row to window
-            win.slice_mut(s![win_dim - 1, ..])
-                .assign(&x_ndarray.slice(s![i, ..]).to_owned());
-
+            win = win.roll_dim(-1, 0);
+            win.slice_assign(s![-1, ..], x.clone().slice(s![i, ..]));
             // Extract linear features
-            let mut lin_feat = vec![0.0f32; lin_dim];
-            let mut idx = 0usize;
-            for row in (0..win_dim).step_by(s_stride) {
-                for col in 0..n_dim {
-                    lin_feat[idx] = win[[row, col]];
-                    idx += 1;
-                }
-            }
+            let mut lin_feat = win
+                .clone()
+                .slice(s![..;s_stride as isize, ..])
+                .flatten(0, -1);
 
             // Extract nonlinear features
-            let mut nlin_feat = vec![0.0f32; nlin_dim];
-            for (j, comb) in monom_idx.iter().enumerate() {
-                let mut prod = 1.0f32;
-                for &c in comb {
-                    prod *= lin_feat[c];
-                }
-                nlin_feat[j] = prod;
-            }
+            let mut nlin_feat = lin_feat.clone().slice(s![monom_idx, ..]).prod_dim(1);
 
             // Store features
-            for j in 0..lin_dim {
-                lin_features[[i, j]] = lin_feat[j];
-            }
-            for j in 0..nlin_dim {
-                nlin_features[[i, j]] = nlin_feat[j];
-            }
+            lin_features.slice_assign(s![i, ..], lin_features);
+
+            nlin_features.slice_assign(s![i, ..], nlin_feat);
         }
 
-        // Convert ndarray back to Tensor
-        let lin_features_vec = lin_features
-            .to_shape([n_steps * lin_dim])
-            .map_err(|e| e.to_string())?
-            .to_vec();
-        let nlin_features_vec = nlin_features
-            .to_shape([n_steps * nlin_dim])
-            .map_err(|e| e.to_string())?
-            .to_vec();
-        let win_vec = win
-            .to_shape([win_dim * n_dim])
-            .map_err(|e| e.to_string())?
-            .to_vec();
-
-        let lin_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(
-                lin_features_vec,
-                burn::tensor::Shape::new([n_steps, lin_dim]),
-            ),
-            &self.device,
-        );
-        let nlin_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(
-                nlin_features_vec,
-                burn::tensor::Shape::new([n_steps, nlin_dim]),
-            ),
-            &self.device,
-        );
-        let win_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(win_vec, burn::tensor::Shape::new([win_dim, n_dim])),
-            &self.device,
-        );
-
-        Ok((lin_tensor, nlin_tensor, win_tensor))
+        Ok((lin_features, nlin_features, win))
     }
 
     fn total_feature(
