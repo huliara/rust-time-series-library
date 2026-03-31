@@ -117,7 +117,7 @@ pub fn multiscroll(
 
     stepper
         .y_out()
-        .into_iter()
+        .iter()
         .map(|v| [v[0], v[1], v[2]])
         .collect::<Vec<_>>()
 }
