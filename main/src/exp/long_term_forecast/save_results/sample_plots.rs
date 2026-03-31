@@ -3,9 +3,6 @@ use burn::{
     Tensor,
 };
 
-use crate::exp::long_term_forecast::save_results::plot_attractor::{
-    plot_multi_feature_attractor, plot_single_feature_attractor,
-};
 use crate::exp::long_term_forecast::save_results::plot_prediction::{
     plot_multi_feature_prediction, plot_single_feature_prediction,
 };
@@ -75,8 +72,6 @@ pub fn sample_plots<B: Backend>(
             &pred_multi[0],
             &future_multi[0],
         );
-        plot_multi_feature_attractor(test_dir, sample_id, &pred_multi);
-        plot_single_feature_attractor(test_dir, sample_id, &pred_multi[0]);
         plot_multi_feature_return_map(test_dir, sample_id, &pred_multi);
         plot_single_feature_return_map(test_dir, sample_id, &pred_multi[0]);
     }
