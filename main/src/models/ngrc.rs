@@ -1,15 +1,15 @@
-#![allow(dead_code)]
-
 use ndarray::{s, Array1, Array2, Axis};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use clap::{Args, ValueEnum};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum NgrcLoss {
     Mse,
     Mae,
 }
-
-#[derive(Debug, Clone)]
-pub struct NgrcConfig {
+#[derive(Debug, Clone, Deserialize, Serialize, Args)]
+pub struct NgrcArgs {
     pub delay: usize,
     pub stride: usize,
     pub poly_order: usize,
@@ -19,7 +19,7 @@ pub struct NgrcConfig {
     pub loss: NgrcLoss,
 }
 
-impl Default for NgrcConfig {
+impl Default for NgrcArgs {
     fn default() -> Self {
         Self {
             delay: 2,
@@ -35,12 +35,12 @@ impl Default for NgrcConfig {
 
 #[derive(Debug, Clone)]
 pub struct Ngrc {
-    pub config: NgrcConfig,
+    pub config: NgrcArgs,
     pub wout: Option<Array2<f32>>,
 }
 
 impl Ngrc {
-    pub fn new(config: NgrcConfig) -> Self {
+    pub fn new(config: NgrcArgs) -> Self {
         Self { config, wout: None }
     }
 
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn ngrc_fit_and_forecast_shape() {
-        let mut model = Ngrc::new(NgrcConfig {
+        let mut model = Ngrc::new(NgrcArgs {
             delay: 2,
             stride: 1,
             poly_order: 2,
