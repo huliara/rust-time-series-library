@@ -12,12 +12,19 @@ pub enum NgrcLoss {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Args)]
 pub struct NgrcArgs {
+    #[arg(long, default_value_t = 2)]
     pub delay: usize,
+    #[arg(long, default_value_t = 1)]
     pub stride: usize,
+    #[arg(long, default_value_t = 2)]
     pub poly_order: usize,
+    #[arg(long, default_value_t = 1e-3)]
     pub ridge_param: f32,
+    #[arg(long, default_value_t = 5)]
     pub transients: usize,
+    #[arg(long, default_value_t = true)]
     pub bias: bool,
+    #[arg(long, value_enum, default_value_t = NgrcLoss::Mse)]
     pub loss: NgrcLoss,
 }
 
@@ -148,9 +155,9 @@ impl<B: Backend> Ngrc<B> {
         let n_dim = x_shape.dims[1];
         let lin_dim = n_dim * k;
 
-        let monom_idx = (0..lin_dim).combinations_with_replacement(p);
+        let monom_idx = (0..lin_dim as u32).combinations_with_replacement(p);
 
-        let nlin_dim = monom_idx.len();
+        let nlin_dim = monom_idx.clone().count();
 
         let win_dim = (k - 1) * s_stride + 1;
 
@@ -173,9 +180,9 @@ impl<B: Backend> Ngrc<B> {
 
         for i in 0..n_steps {
             win = win.roll_dim(-1, 0);
-            win.slice_assign(s![-1, ..], x.clone().slice(s![i, ..]));
+            win = win.slice_assign(s![-1, ..], x.clone().slice(s![i, ..]));
             // Extract linear features
-            let mut lin_feat = win
+            let lin_feat = win
                 .clone()
                 .slice(s![..;s_stride as isize, ..])
                 .flatten(0, -1);
@@ -183,20 +190,26 @@ impl<B: Backend> Ngrc<B> {
             // Extract nonlinear features
             let mut nlin_feat: Tensor<B, 2> =
                 Tensor::zeros(Shape::new([1, nlin_dim]), &self.device);
-            for (j, ids) in monom_idx.enumerate() {
-                nlin_feat.slice_assign(
+            for (j, ids) in monom_idx.clone().enumerate() {
+                nlin_feat = nlin_feat.slice_assign(
                     s![j],
                     lin_feat
                         .clone()
-                        .select(0, Tensor::from(ids.clone()))
+                        .select(
+                            0,
+                            Tensor::from_data(
+                                TensorData::new(ids.clone(), Shape::new([ids.len()])),
+                                &self.device,
+                            ),
+                        )
                         .prod_dim(0),
                 );
             }
 
             // Store features
-            lin_features.slice_assign(s![i, ..], lin_features);
+            lin_features = lin_features.slice_assign(s![i, ..], lin_feat);
 
-            nlin_features.slice_assign(s![i, ..], nlin_feat);
+            nlin_features = nlin_features.slice_assign(s![i, ..], nlin_feat);
         }
 
         Ok((lin_features, nlin_features, win))
@@ -227,10 +240,9 @@ impl<B: Backend> Ngrc<B> {
         target: &Tensor<B, 2>,
     ) -> Result<Tensor<B, 2>, String> {
         let target_shape = target.shape();
-        let trans = self.config.transients.min(target_shape.dims[0]);
         let y = target
             .clone()
-            .slice([trans..target_shape.dims[0], 0..target_shape.dims[1]]);
+            .slice(s![self.config.transients..target_shape.dims[0], ..]);
         let x = self.total_feature(lin_features, nlin_features);
 
         let x_shape = x.shape();
@@ -240,7 +252,11 @@ impl<B: Backend> Ngrc<B> {
         }
 
         let yxt = y.clone().transpose().matmul(x.clone());
-        let xxt = x.clone().transpose().matmul(x);
+        let xxt = x
+            .clone()
+            .transpose()
+            .matmul(x)
+            .add_scalar(self.config.ridge_param);
 
         // Add ridge regularization to diagonal
         let xxt_data = xxt.clone().into_data().convert::<f32>();
