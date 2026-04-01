@@ -42,22 +42,36 @@ impl Default for NgrcArgs {
     }
 }
 
+impl NgrcArgs {
+    pub fn init<B: Backend>(self, device: &B::Device) -> Ngrc<B> {
+        Ngrc {
+            delay: self.delay,
+            stride: self.stride,
+            poly_order: self.poly_order,
+            ridge_param: self.ridge_param,
+            transients: self.transients,
+            bias: self.bias,
+            loss: self.loss,
+            wout: None,
+            device: device.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Ngrc<B: Backend> {
-    pub config: NgrcArgs,
+    pub delay: usize,
+    pub stride: usize,
+    pub poly_order: usize,
+    pub ridge_param: f32,
+    pub transients: usize,
+    pub bias: bool,
+    pub loss: NgrcLoss,
     pub wout: Option<Tensor<B, 2>>,
     pub device: B::Device,
 }
 
 impl<B: Backend> Ngrc<B> {
-    pub fn new(config: NgrcArgs, device: B::Device) -> Self {
-        Self {
-            config,
-            wout: None,
-            device,
-        }
-    }
-
     pub fn fit(&mut self, train_data: &Tensor<B, 2>) -> Result<(), String> {
         let shape = train_data.shape();
         if shape.dims[0] < 2 {
@@ -69,7 +83,7 @@ impl<B: Backend> Ngrc<B> {
         let dtrain = y_next - x.clone();
 
         let (lin_features, nlin_features, _) = self.nvar(&x, None)?;
-        let wout = match self.config.loss {
+        let wout = match self.loss {
             NgrcLoss::Mse => self.tikhonov_regression(&lin_features, &nlin_features, &dtrain)?,
             NgrcLoss::Mae => self.tikhonov_regression(&lin_features, &nlin_features, &dtrain)?,
         };
@@ -79,15 +93,15 @@ impl<B: Backend> Ngrc<B> {
 
     pub fn forecast(&self, context: &Tensor<B, 2>, steps: usize) -> Result<Tensor<B, 2>, String> {
         let shape = context.shape();
-        if shape.dims[0] < self.config.delay + 1 {
+        if shape.dims[0] < self.delay + 1 {
             return Err(format!(
                 "context is too short: need at least {} rows",
-                self.config.delay + 1
+                self.delay + 1
             ));
         }
         let n_dim = shape.dims[1];
 
-        let context_start = shape.dims[0].saturating_sub(self.config.delay);
+        let context_start = shape.dims[0].saturating_sub(self.delay);
         let warmup = context
             .clone()
             .slice([context_start..shape.dims[0] - 1, 0..n_dim]);
@@ -125,7 +139,7 @@ impl<B: Backend> Ngrc<B> {
             .ok_or_else(|| "model is not fitted".to_string())?;
 
         let mut tot = Tensor::cat(vec![lin_features.clone(), nlin_features.clone()], 1);
-        if self.config.bias {
+        if self.bias {
             let shape = tot.shape();
             let ones = Tensor::ones([shape.dims[0], 1], &self.device);
             tot = Tensor::cat(vec![ones, tot], 1);
@@ -143,9 +157,9 @@ impl<B: Backend> Ngrc<B> {
 
         let x_shape = x.shape();
 
-        let k = self.config.delay;
-        let s_stride = self.config.stride;
-        let p = self.config.poly_order;
+        let k = self.delay;
+        let s_stride = self.stride;
+        let p = self.poly_order;
 
         if k < 1 || s_stride < 1 || p < 1 {
             return Err("delay/stride/poly_order must be >= 1".to_string());
@@ -222,10 +236,10 @@ impl<B: Backend> Ngrc<B> {
     ) -> Tensor<B, 2> {
         let mut tot = Tensor::cat(vec![lin_features.clone(), nlin_features.clone()], 1);
         let shape = tot.shape();
-        let trans = self.config.transients.min(shape.dims[0]);
+        let trans = self.transients.min(shape.dims[0]);
         tot = tot.slice([trans..shape.dims[0], 0..shape.dims[1]]);
 
-        if self.config.bias {
+        if self.bias {
             let shape_after = tot.shape();
             let ones = Tensor::ones([shape_after.dims[0], 1], &self.device);
             tot = Tensor::cat(vec![ones, tot], 1);
@@ -242,7 +256,7 @@ impl<B: Backend> Ngrc<B> {
         let target_shape = target.shape();
         let y = target
             .clone()
-            .slice(s![self.config.transients..target_shape.dims[0], ..]);
+            .slice(s![self.transients..target_shape.dims[0], ..]);
         let x = self.total_feature(lin_features, nlin_features);
 
         let x_shape = x.shape();
@@ -252,11 +266,7 @@ impl<B: Backend> Ngrc<B> {
         }
 
         let yxt = y.clone().transpose().matmul(x.clone());
-        let xxt = x
-            .clone()
-            .transpose()
-            .matmul(x)
-            .add_scalar(self.config.ridge_param);
+        let xxt = x.clone().transpose().matmul(x).add_scalar(self.ridge_param);
 
         // Add ridge regularization to diagonal
         let xxt_data = xxt.clone().into_data().convert::<f32>();
@@ -264,7 +274,7 @@ impl<B: Backend> Ngrc<B> {
         let mut xxt_vec = xxt_slice.to_vec();
         let n = xxt.shape().dims[0];
         for i in 0..n {
-            xxt_vec[i * n + i] += self.config.ridge_param;
+            xxt_vec[i * n + i] += self.ridge_param;
         }
         let xxt_reg = Tensor::from_data(
             TensorData::new(xxt_vec, burn::tensor::Shape::new([n, n])),
