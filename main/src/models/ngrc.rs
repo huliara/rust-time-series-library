@@ -2,6 +2,8 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{s, Shape, Tensor, TensorData};
 use clap::{Args, ValueEnum};
 use itertools::Itertools;
+use ndarray_017::Array2;
+use ndarray_linalg::Inverse;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -43,8 +45,8 @@ impl Default for NgrcArgs {
 }
 
 impl NgrcArgs {
-    pub fn init<B: Backend>(self, device: &B::Device) -> Ngrc<B> {
-        Ngrc {
+    pub fn init<B: Backend>(self, device: &B::Device) -> NGRC<B> {
+        NGRC {
             delay: self.delay,
             stride: self.stride,
             poly_order: self.poly_order,
@@ -59,7 +61,7 @@ impl NgrcArgs {
 }
 
 #[derive(Debug, Clone)]
-pub struct Ngrc<B: Backend> {
+pub struct NGRC<B: Backend> {
     pub delay: usize,
     pub stride: usize,
     pub poly_order: usize,
@@ -71,7 +73,7 @@ pub struct Ngrc<B: Backend> {
     pub device: B::Device,
 }
 
-impl<B: Backend> Ngrc<B> {
+impl<B: Backend> NGRC<B> {
     pub fn fit(&mut self, train_data: &Tensor<B, 2>) -> Result<(), String> {
         let shape = train_data.shape();
         if shape.dims[0] < 2 {
@@ -314,72 +316,18 @@ fn invert_square_tensor<B: Backend>(
     }
     let n = shape.dims[0];
 
-    // Convert to f32 data for computation
+    // Convert Burn tensor to ndarray matrix and invert with ndarray-linalg.
     let a_data = a.into_data().convert::<f32>();
-    let a_slice = a_data.as_slice::<f32>().unwrap_or(&[]);
+    let a_slice = a_data
+        .as_slice::<f32>()
+        .map_err(|e| format!("failed to get matrix data as contiguous slice: {e}"))?;
 
-    // Create augmented matrix [A | I]
-    let mut aug = vec![0.0f32; n * 2 * n];
-    for r in 0..n {
-        for c in 0..n {
-            aug[r * 2 * n + c] = a_slice[r * n + c];
-        }
-        aug[r * 2 * n + n + r] = 1.0;
-    }
-
-    // Gaussian elimination with partial pivoting
-    for i in 0..n {
-        // Find pivot
-        let mut pivot = i;
-        let mut max_abs = aug[i * 2 * n + i].abs();
-        for r in (i + 1)..n {
-            let v = aug[r * 2 * n + i].abs();
-            if v > max_abs {
-                max_abs = v;
-                pivot = r;
-            }
-        }
-        if max_abs < 1e-12 {
-            return Err("matrix is singular".to_string());
-        }
-
-        // Swap rows
-        if pivot != i {
-            for c in 0..(2 * n) {
-                let tmp = aug[i * 2 * n + c];
-                aug[i * 2 * n + c] = aug[pivot * 2 * n + c];
-                aug[pivot * 2 * n + c] = tmp;
-            }
-        }
-
-        // Normalize pivot row
-        let diag = aug[i * 2 * n + i];
-        for c in 0..(2 * n) {
-            aug[i * 2 * n + c] /= diag;
-        }
-
-        // Eliminate below and above
-        for r in 0..n {
-            if r == i {
-                continue;
-            }
-            let factor = aug[r * 2 * n + i];
-            if factor.abs() < 1e-20 {
-                continue;
-            }
-            for c in 0..(2 * n) {
-                aug[r * 2 * n + c] -= factor * aug[i * 2 * n + c];
-            }
-        }
-    }
-
-    // Extract inverse from augmented matrix
-    let mut inv_data = vec![0.0f32; n * n];
-    for r in 0..n {
-        for c in 0..n {
-            inv_data[r * n + c] = aug[r * 2 * n + n + c];
-        }
-    }
+    let a_matrix = Array2::from_shape_vec((n, n), a_slice.to_vec())
+        .map_err(|e| format!("failed to build ndarray matrix: {e}"))?;
+    let inv = a_matrix
+        .inv()
+        .map_err(|e| format!("matrix inversion failed: {e}"))?;
+    let inv_data: Vec<f32> = inv.iter().copied().collect();
 
     Ok(Tensor::from_data(
         TensorData::new(inv_data, burn::tensor::Shape::new([n, n])),
