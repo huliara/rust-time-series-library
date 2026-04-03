@@ -2,6 +2,7 @@ cd main && cargo run -p main -- \
     --num-epochs 1 \
     --task-name long-term-forecast \
     --backend wgpu \
+    gradient-model \
     patch-tst \
     --activation gelu \
     et-th1 \

@@ -70,13 +70,13 @@ esac
 
 case "$MODEL" in
   patch-tst)
-    MODEL_CMD=(patch-tst --activation gelu)
+    MODEL_CMD=(gradient-model patch-tst --activation gelu)
     ;;
   time-xer)
-    MODEL_CMD=(time-xer --activation gelu)
+    MODEL_CMD=(gradient-model time-xer --activation gelu)
     ;;
   dlinear)
-    MODEL_CMD=(dlinear)
+    MODEL_CMD=(gradient-model d-linear)
     ;;
   *)
     echo "Unknown model: $MODEL" >&2

@@ -3,6 +3,7 @@ cd main && cargo run -p main -- \
     --task-name long-term-forecast \
     --backend wgpu \
     --batch-size 64 \
+    gradient-model \
     patch-tst \
     --activation gelu \
     exchange \

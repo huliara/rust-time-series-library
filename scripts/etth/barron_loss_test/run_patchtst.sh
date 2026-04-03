@@ -4,6 +4,7 @@ cd main && cargo run -p main -- \
     --loss-scale 1.0 \
     --task-name long-term-forecast \
     --backend wgpu \
+    gradient-model \
     patch-tst \
     --activation gelu \
     et-th1 \

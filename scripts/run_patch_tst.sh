@@ -9,7 +9,7 @@ SEQ_LEN="${SEQ_LEN:-96}"
 LABEL_LEN="${LABEL_LEN:-48}"
 PRED_LEN="${PRED_LEN:-96}"
 
-MODEL_CMD=(patch-tst --activation gelu)
+MODEL_CMD=(gradient-model patch-tst --activation gelu)
 
 # Dynamic-system specific optional overrides.
 N_TIMESTEPS="${N_TIMESTEPS:-60000}"
