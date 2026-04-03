@@ -12,7 +12,7 @@ use crate::{
         loss::barron_loss::BarronLoss,
         Train,
     },
-    models::traits::Forecast,
+    models::{rc_model::RCModel, traits::Forecast},
 };
 use burn::{
     module::AutodiffModule,
@@ -218,7 +218,7 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     .expect("Trained model should be saved successfully");
             }
             ModelCommand::RCModel(args) => {
-                let model = args.model_config.init::<B>(&self.device);
+                let mut model = args.model_config.init::<B>(&self.device);
                 let dataset = get_dataset::<B>(
                     &self.data_config,
                     &self.lengths,
@@ -233,6 +233,67 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     self.exp_config.seed,
                     ExpFlag::Val,
                 );
+
+                match &mut model {
+                    RCModel::NGRC(ngrc) => {
+                        println!("Starting NGRC model training...");
+                        ngrc.fit(&dataset.data_x)
+                            .expect("Failed to train NGRC model");
+                        println!("NGRC model training completed.");
+
+                        let valid_log_root = format!("{0}/valid", self.result_path);
+                        fs::create_dir_all(&valid_log_root).unwrap();
+                        let valid_epoch_loss_log = format!("{valid_log_root}/Loss.log");
+                        let valid_epoch_loss_file = fs::File::create(&valid_epoch_loss_log)
+                            .expect("Failed to create per-epoch validation Loss.log");
+                        let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
+
+                        let mut valid_loss_sum = 0.0f64;
+                        let mut valid_steps = 0usize;
+
+                        println!("Starting validation...");
+                        for batch in dataloader.iter() {
+                            let TimeSeriesBatch { x, y, .. } = batch;
+                            let dims = x.dims();
+                            let batch_size = dims[0];
+                            let seq_len = dims[1];
+                            let n_dim = dims[2];
+                            let pred_len = y.dims()[1];
+
+                            let mut outputs = Vec::with_capacity(batch_size);
+                            for b in 0..batch_size {
+                                let x_b = x
+                                    .clone()
+                                    .slice([b..b + 1, 0..seq_len, 0..n_dim])
+                                    .squeeze_dim::<2>(0);
+                                let pred =
+                                    ngrc.forecast(&x_b, pred_len).expect("Failed to forecast");
+                                outputs.push(pred.unsqueeze_dim::<3>(0));
+                            }
+                            let output = Tensor::cat(outputs, 0);
+
+                            let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
+                            let loss_scalar = loss.into_data().into_vec::<f32>().unwrap()[0] as f64;
+
+                            valid_loss_sum += loss_scalar;
+                            valid_steps += 1;
+
+                            writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
+                                .expect("Failed to write validation loss log line");
+                        }
+
+                        let valid_avg = if valid_steps > 0 {
+                            valid_loss_sum / valid_steps as f64
+                        } else {
+                            0.0
+                        };
+
+                        println!("[Validation Summary] valid_loss={:.6}", valid_avg);
+                        valid_epoch_loss_writer
+                            .flush()
+                            .expect("Failed to flush validation Loss.log");
+                    }
+                }
             }
         }
     }

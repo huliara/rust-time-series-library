@@ -1,7 +1,6 @@
-use burn::prelude::Backend;
-
 use self::ngrc::NGRC;
 use crate::args::model::rc_model::RCModelCommand;
+use burn::prelude::Backend;
 pub mod ngrc;
 pub mod rc;
 
