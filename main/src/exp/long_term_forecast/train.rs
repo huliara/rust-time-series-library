@@ -1,9 +1,4 @@
 use crate::{
-    args::{
-        data::DataCommand,
-        model::{gradient_model::GradientModelConfig, ModelConfig},
-        time_lengths::TimeLengths,
-    },
     data::{
         batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
@@ -100,7 +95,7 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                 fs::File::create(&epoch_loss_log).expect("Failed to create per-epoch Loss.log");
             let mut epoch_loss_writer = BufWriter::new(epoch_loss_file);
 
-            for (iteration, batch) in dataloader_train.iter().enumerate() {
+            for batch in dataloader_train.iter() {
                 let TimeSeriesBatch {
                     x,
                     x_mark,
@@ -139,7 +134,7 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
             let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
             let model_valid = model.valid();
 
-            for (iteration, batch) in dataloader_valid.iter().enumerate() {
+            for batch in dataloader_valid.iter() {
                 let TimeSeriesBatch {
                     x,
                     x_mark,
