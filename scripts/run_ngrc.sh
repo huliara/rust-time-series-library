@@ -25,6 +25,7 @@ N_TIMESTEPS="${N_TIMESTEPS:-60000}"
 DT="${DT:-0.01}"
 H="${H:-0.01}"
 DATA_CMDS=(
+    "bool-transform --n-timesteps $N_TIMESTEPS"
     "logistic-map --n-timesteps $N_TIMESTEPS"
     "lorenz --n-timesteps $N_TIMESTEPS --h $H"
     "lorenz96 --n-timesteps $N_TIMESTEPS --dt $DT --h $H"

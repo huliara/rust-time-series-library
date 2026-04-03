@@ -13,8 +13,11 @@ use crate::{
 
 #[derive(Args, Debug, Clone, Deserialize, Serialize)]
 pub struct BoolTransformConfig {
+    #[arg(long, default_value_t = 10000)]
     pub n_timesteps: usize,
+    #[arg(long, default_value_t = 0.4999999999)]
     pub a: f64,
+    #[arg(long, default_value_t = 0.5)]
     pub x0: f64,
 }
 
