@@ -78,9 +78,12 @@ case "$MODEL" in
   dlinear)
     MODEL_CMD=(gradient-model d-linear)
     ;;
+  ngrc)
+    MODEL_CMD=(rc-model ngrc)
+    ;;
   *)
     echo "Unknown model: $MODEL" >&2
-    echo "Supported: patch-tst, time-xer, dlinear" >&2
+    echo "Supported: patch-tst, time-xer, dlinear, ngrc" >&2
     exit 1
     ;;
 esac
