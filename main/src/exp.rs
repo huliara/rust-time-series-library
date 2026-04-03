@@ -6,37 +6,34 @@ use std::time::Instant;
 
 use crate::{
     args::{
-        model::{gradient_model::GradientModelConfig, DisplayArgs, ModelConfig},
+        model::{DisplayArgs, ModelCommand},
         RootArgs,
     },
-    exp::{
-        long_term_forecast::{GradientForecastModel, LongTermForecastExp},
-        plot_loss::plot_loss_for_experiment,
-    },
+    exp::{long_term_forecast::LongTermForecastExp, plot_loss::plot_loss_for_experiment},
 };
 
 use lib::env_path::get_result_root_path;
 
 pub(crate) trait Train<B: AutodiffBackend> {
-    fn train(&self, model_config: ModelConfig);
+    fn train(&self, model_command: ModelCommand);
 }
 
 pub(crate) trait Infer<B: AutodiffBackend> {
-    fn infer(&self, model_config: ModelConfig);
+    fn infer(&self, model_command: ModelCommand);
 }
 
-pub fn run<B: AutodiffBackend>(model_config: ModelConfig, args: RootArgs, device: B::Device) {
-    let data_config = args.model_config.data_config().clone();
+pub fn run<B: AutodiffBackend>(model_command: ModelCommand, args: RootArgs, device: B::Device) {
+    let data_config = args.model_command.data_config().clone();
     let detail_path = format!(
         "{}{}{}",
-        &args.model_config.display_args(),
+        &args.model_command.display_args(),
         data_config.inner_string(),
         &args.exp_config,
     );
     let result_path = format!(
         "{}/{}/{}/{}",
         get_result_root_path(),
-        args.model_config,
+        args.model_command,
         data_config,
         detail_path
     );
@@ -54,12 +51,11 @@ pub fn run<B: AutodiffBackend>(model_config: ModelConfig, args: RootArgs, device
     };
     if !args.skip_training {
         let train_start = Instant::now();
-
-        exp.train(model_config.clone());
+        exp.train(model_command.clone());
         let elapsed = train_start.elapsed();
         println!("Training finished in {:.3} seconds", elapsed.as_secs_f64());
     }
 
     plot_loss_for_experiment(&result_path).expect("Failed to plot loss curves");
-    exp.infer(model_config);
+    exp.infer(model_command);
 }

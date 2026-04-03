@@ -18,7 +18,7 @@ use crate::exp::run;
 
 fn main() {
     let args = RootArgs::parse();
-    args.model_config
+    args.model_command
         .data_config()
         .validate_targets_match_first_train_feature()
         .expect("Targets must match the first train feature");
@@ -28,7 +28,7 @@ fn main() {
     match args.task_name {
         TaskName::LongTermForecast => {
             if args.backend == ArgBackend::Wgpu {
-                run::<Backend>(args.model_config.clone(), args, device);
+                run::<Backend>(args.model_command.clone(), args, device);
             }
         }
 

@@ -8,16 +8,16 @@ use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
-pub enum ModelConfig {
+pub enum ModelCommand {
     GradientModel(GradientModelArgs),
     RCModel(RCModelArgs),
 }
 
-impl ModelConfig {
+impl ModelCommand {
     pub fn data_config(&self) -> &DataCommand {
         match self {
-            ModelConfig::GradientModel(cmd) => cmd.model_config.data_config(),
-            ModelConfig::RCModel(cmd) => &cmd.model_config.data_config(),
+            ModelCommand::GradientModel(cmd) => cmd.model_command.data_config(),
+            ModelCommand::RCModel(cmd) => cmd.model_config.data_config(),
         }
     }
 }
@@ -26,11 +26,11 @@ pub trait DisplayArgs {
     fn display_args(&self) -> String;
 }
 
-impl DisplayArgs for ModelConfig {
+impl DisplayArgs for ModelCommand {
     fn display_args(&self) -> String {
         match self {
-            ModelConfig::GradientModel(cmd) => cmd.model_config.display_args(),
-            ModelConfig::RCModel(cmd) => cmd.model_config.display_args(),
+            ModelCommand::GradientModel(cmd) => cmd.model_command.display_args(),
+            ModelCommand::RCModel(cmd) => cmd.model_config.display_args(),
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    args::model::ModelConfig,
+    args::model::ModelCommand,
     data::{
         batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
@@ -56,15 +56,15 @@ impl std::fmt::Display for ExpConfig {
 }
 
 impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
-    fn train(&self, model_config: ModelConfig)
+    fn train(&self, model_config: ModelCommand)
     where
         B: AutodiffBackend,
     {
         B::seed(&self.device, self.exp_config.seed);
         match model_config {
-            ModelConfig::GradientModel(arg) => {
+            ModelCommand::GradientModel(arg) => {
                 let mut model = GradientForecastModel::<B>::new(
-                    arg.model_config.clone(),
+                    arg.model_command.clone(),
                     self.lengths.clone(),
                     &self.device,
                 );
@@ -216,7 +216,7 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     )
                     .expect("Trained model should be saved successfully");
             }
-            ModelConfig::RCModel(args) => {
+            ModelCommand::RCModel(args) => {
                 let model = args.model_config.init::<B>(&self.device);
             }
         }

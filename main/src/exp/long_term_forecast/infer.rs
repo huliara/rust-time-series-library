@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::{
-    args::model::ModelConfig,
+    args::model::ModelCommand,
     data::{data_loader::create_data_loader, dataset::time_series_dataset::ExpFlag},
     exp::{
         long_term_forecast::{
@@ -19,15 +19,15 @@ use burn::{
 };
 
 impl<B: AutodiffBackend> Infer<B> for LongTermForecastExp<B> {
-    fn infer(&self, model_config: ModelConfig) {
+    fn infer(&self, model_config: ModelCommand) {
         match model_config {
-            ModelConfig::GradientModel(config) => {
+            ModelCommand::GradientModel(config) => {
                 let record = CompactRecorder::new()
                     .load(format!("{0}/model", self.result_path).into(), &self.device)
                     .expect("Trained model should exist; run train first");
 
                 let model: GradientForecastModel<B> = GradientForecastModel::<B>::new(
-                    config.model_config.clone(),
+                    config.model_command.clone(),
                     self.lengths.clone(),
                     &self.device,
                 )
@@ -66,7 +66,7 @@ impl<B: AutodiffBackend> Infer<B> for LongTermForecastExp<B> {
                 plot_samples(contexts, predicts, futures.clone(), 12, &test_dir);
                 save_results(&test_dir, error, futures);
             }
-            ModelConfig::RCModel(args) => {
+            ModelCommand::RCModel(args) => {
                 let model = args.model_config.init::<B>(&self.device);
             }
         }

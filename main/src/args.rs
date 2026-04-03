@@ -8,7 +8,7 @@ pub mod time_lengths;
 use self::exp::TaskName;
 use self::time_lengths::TimeLengths;
 use crate::{
-    args::{backend::Backend, model::ModelConfig},
+    args::{backend::Backend, model::ModelCommand},
     exp::long_term_forecast::train::ExpConfig,
 };
 use clap::Parser;
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[command(author, version, about, long_about = None)]
 pub struct RootArgs {
     #[command(subcommand)]
-    pub model_config: ModelConfig,
+    pub model_command: ModelCommand,
     #[arg(long, value_enum)]
     pub task_name: TaskName,
     #[arg(long, value_enum)]

@@ -6,7 +6,7 @@ pub mod train;
 mod train_step;
 use crate::{
     args::{
-        data::DataCommand, exp::TaskName, model::gradient_model::GradientModelConfig,
+        data::DataCommand, exp::TaskName, model::gradient_model::GradientModelCommand,
         time_lengths::TimeLengths,
     },
     exp::long_term_forecast::train::ExpConfig,
@@ -21,7 +21,7 @@ pub struct GradientForecastModel<B: Backend> {
 
 impl<B: Backend> GradientForecastModel<B> {
     pub fn new(
-        model_config: GradientModelConfig,
+        model_config: GradientModelCommand,
         lengths: TimeLengths,
         device: &B::Device,
     ) -> Self {
