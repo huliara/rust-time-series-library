@@ -1,8 +1,9 @@
 use crate::{
     args::model::ModelCommand,
     data::{
-        batcher::TimeSeriesBatch, data_loader::create_data_loader,
-        dataset::time_series_dataset::ExpFlag,
+        batcher::TimeSeriesBatch,
+        data_loader::create_data_loader,
+        dataset::{get_dataset::get_dataset, time_series_dataset::ExpFlag},
     },
     exp::{
         long_term_forecast::{
@@ -218,6 +219,20 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
             }
             ModelCommand::RCModel(args) => {
                 let model = args.model_config.init::<B>(&self.device);
+                let dataset = get_dataset::<B>(
+                    &self.data_config,
+                    &self.lengths,
+                    ExpFlag::Train,
+                    &self.device,
+                );
+                let dataloader = create_data_loader::<B>(
+                    &self.data_config,
+                    &self.lengths,
+                    self.exp_config.batch_size,
+                    self.exp_config.num_workers,
+                    self.exp_config.seed,
+                    ExpFlag::Val,
+                );
             }
         }
     }

@@ -62,15 +62,15 @@ impl NGRCConfig {
 
 #[derive(Debug, Clone)]
 pub struct NGRC<B: Backend> {
-    pub delay: usize,
-    pub stride: usize,
-    pub poly_order: usize,
-    pub ridge_param: f32,
-    pub transients: usize,
-    pub bias: bool,
-    pub loss: NgrcLoss,
-    pub wout: Option<Tensor<B, 2>>,
-    pub device: B::Device,
+    delay: usize,
+    stride: usize,
+    poly_order: usize,
+    ridge_param: f32,
+    transients: usize,
+    bias: bool,
+    loss: NgrcLoss,
+    wout: Option<Tensor<B, 2>>,
+    device: B::Device,
 }
 
 impl<B: Backend> NGRC<B> {

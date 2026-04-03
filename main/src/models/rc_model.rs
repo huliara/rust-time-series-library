@@ -1,5 +1,6 @@
 use burn::prelude::Backend;
 
+use self::ngrc::NGRC;
 use crate::args::model::rc_model::RCModelCommand;
 pub mod ngrc;
 pub mod rc;
@@ -12,5 +13,5 @@ impl RCModelCommand {
     }
 }
 pub enum RCModel<B: Backend> {
-    NGRC(ngrc::NGRC<B>),
+    NGRC(NGRC<B>),
 }
