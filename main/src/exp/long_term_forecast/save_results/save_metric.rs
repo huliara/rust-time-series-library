@@ -1,6 +1,6 @@
 use burn::{prelude::Backend, Tensor};
 use std::io::Write;
-pub fn save_results<B: Backend>(exp_root_path: &str, error: Tensor<B, 3>, futures: Tensor<B, 3>) {
+pub fn save_results<B: Backend>(test_dir: &str, error: Tensor<B, 3>, futures: Tensor<B, 3>) {
     // Calculate MSE and MAE per time step (average over Batch and Features)
     // error shape: [Batch, Time, Features]
     // mean_dim(0) -> [1, Time, Features]
@@ -21,8 +21,8 @@ pub fn save_results<B: Backend>(exp_root_path: &str, error: Tensor<B, 3>, future
         .to_vec::<f32>()
         .unwrap();
 
-    let mut mse_writer = csv::Writer::from_path(format!("{exp_root_path}/test/mse.csv")).unwrap();
-    let mut mae_writer = csv::Writer::from_path(format!("{exp_root_path}/test/mae.csv")).unwrap();
+    let mut mse_writer = csv::Writer::from_path(format!("{test_dir}/mse.csv")).unwrap();
+    let mut mae_writer = csv::Writer::from_path(format!("{test_dir}/mae.csv")).unwrap();
 
     for val in mse_t.iter() {
         mse_writer.write_record(&[val.to_string()]).unwrap();
@@ -67,7 +67,7 @@ pub fn save_results<B: Backend>(exp_root_path: &str, error: Tensor<B, 3>, future
         .into_data()
         .into_vec::<f32>()
         .unwrap()[0];
-    let mut file = std::fs::File::create(format!("{exp_root_path}/test/results.txt")).unwrap();
+    let mut file = std::fs::File::create(format!("{test_dir}/results.txt")).unwrap();
     file.write_all(
         format!(
             "MSE: {all_mse}\nMAE: {all_mae}\nRMSE: {all_rmse}\nMAPE: {all_mape}\nMSPE: {all_mspe}"

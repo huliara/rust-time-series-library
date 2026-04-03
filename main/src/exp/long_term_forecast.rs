@@ -46,10 +46,10 @@ impl<B: Backend> Forecast<B> for GradientForecastModel<B> {
     }
 }
 
-struct LongTermForecastExp<B: AutodiffBackend> {
-    result_path: String,
-    exp_config: ExpConfig,
-    data_config: DataCommand,
-    lengths: TimeLengths,
-    device: B::Device,
+pub struct LongTermForecastExp<B: AutodiffBackend> {
+    pub result_path: String,
+    pub exp_config: ExpConfig,
+    pub data_config: DataCommand,
+    pub lengths: TimeLengths,
+    pub device: B::Device,
 }

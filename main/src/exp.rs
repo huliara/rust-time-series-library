@@ -1,27 +1,38 @@
 pub mod long_term_forecast;
 pub mod loss;
 pub mod plot_loss;
-use burn::tensor::backend::AutodiffBackend;
+use burn::{module::AutodiffModule, tensor::backend::AutodiffBackend};
 use std::time::Instant;
 
 use crate::{
-    args::{data::DataCommand, model::DisplayArgs, time_lengths::TimeLengths, RootArgs},
-    exp::{long_term_forecast::train::ExpConfig, plot_loss::plot_loss_for_experiment},
+    args::{
+        data::DataCommand,
+        model::{
+            gradient_model::{GradientModelArgs, GradientModelConfig},
+            DisplayArgs, ModelConfig,
+        },
+        time_lengths::TimeLengths,
+        RootArgs,
+    },
+    exp::{
+        long_term_forecast::{train::ExpConfig, GradientForecastModel, LongTermForecastExp},
+        plot_loss::plot_loss_for_experiment,
+    },
     models::traits::Forecast,
 };
 
 use lib::env_path::get_result_root_path;
 
-pub(crate) trait Train<B: AutodiffBackend, M: Forecast<B>> {
-    fn train(&self, model: M);
+pub(crate) trait Train<B: AutodiffBackend> {
+    fn train(&self, model: GradientForecastModel<B>);
 }
 
-pub(crate) trait Infer<B: AutodiffBackend, M: Forecast<B>> {
-    fn infer(&self, model: M);
+pub(crate) trait Infer<B: AutodiffBackend> {
+    fn infer(&self, model_config: GradientModelConfig);
 }
 
-pub fn run<B: AutodiffBackend, F: Forecast<B>, M: Train<B, F> + Infer<B, F>>(
-    model: M,
+pub fn run<B: AutodiffBackend>(
+    model_config: GradientModelConfig,
     args: RootArgs,
     device: B::Device,
 ) {
@@ -44,25 +55,24 @@ pub fn run<B: AutodiffBackend, F: Forecast<B>, M: Train<B, F> + Infer<B, F>>(
     let args_yaml = serde_yaml::to_string(&args).expect("Failed to serialize args to YAML");
     std::fs::write(format!("{}/args.yml", result_path), args_yaml)
         .expect("Failed to write args.yml");
-
+    let exp = LongTermForecastExp {
+        result_path: result_path.clone(),
+        exp_config: args.exp_config.clone(),
+        data_config: data_config.clone(),
+        lengths: args.time_lengths.clone(),
+        device: device.clone(),
+    };
     if !args.skip_training {
         let train_start = Instant::now();
-        model.train(
-            &result_path,
-            args.exp_config.clone(),
-            data_config.clone(),
+        let model = GradientForecastModel::<B>::new(
+            model_config.clone(),
             args.time_lengths.clone(),
-            device.clone(),
+            &device,
         );
+        exp.train(model);
         let elapsed = train_start.elapsed();
         println!("Training finished in {:.3} seconds", elapsed.as_secs_f64());
     }
     plot_loss_for_experiment(&result_path).expect("Failed to plot loss curves");
-    model.infer(
-        &result_path,
-        args.exp_config.clone(),
-        args.time_lengths.clone(),
-        data_config,
-        device,
-    );
+    exp.infer(model_config);
 }

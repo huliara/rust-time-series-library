@@ -59,10 +59,8 @@ impl std::fmt::Display for ExpConfig {
     }
 }
 
-impl<B: AutodiffBackend, M: Forecast<B> + AutodiffModule<B>> Train<B, M>
-    for LongTermForecastExp<B>
-{
-    fn train(&self, model: M)
+impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
+    fn train(&self, mut model: GradientForecastModel<B>)
     where
         B: AutodiffBackend,
     {
