@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use crate::{
     args::{
-        model::{gradient_model::GradientModelConfig, DisplayArgs},
+        model::{gradient_model::GradientModelConfig, DisplayArgs, ModelConfig},
         RootArgs,
     },
     exp::{
@@ -18,18 +18,14 @@ use crate::{
 use lib::env_path::get_result_root_path;
 
 pub(crate) trait Train<B: AutodiffBackend> {
-    fn train(&self, model: GradientForecastModel<B>);
+    fn train(&self, model_config: ModelConfig);
 }
 
 pub(crate) trait Infer<B: AutodiffBackend> {
-    fn infer(&self, model_config: GradientModelConfig);
+    fn infer(&self, model_config: ModelConfig);
 }
 
-pub fn run<B: AutodiffBackend>(
-    model_config: GradientModelConfig,
-    args: RootArgs,
-    device: B::Device,
-) {
+pub fn run<B: AutodiffBackend>(model_config: ModelConfig, args: RootArgs, device: B::Device) {
     let data_config = args.model_config.data_config().clone();
     let detail_path = format!(
         "{}{}{}",
@@ -49,7 +45,7 @@ pub fn run<B: AutodiffBackend>(
     let args_yaml = serde_yaml::to_string(&args).expect("Failed to serialize args to YAML");
     std::fs::write(format!("{}/args.yml", result_path), args_yaml)
         .expect("Failed to write args.yml");
-    let exp = LongTermForecastExp {
+    let exp: LongTermForecastExp<B> = LongTermForecastExp {
         result_path: result_path.clone(),
         exp_config: args.exp_config.clone(),
         data_config: data_config.clone(),
@@ -58,15 +54,12 @@ pub fn run<B: AutodiffBackend>(
     };
     if !args.skip_training {
         let train_start = Instant::now();
-        let model = GradientForecastModel::<B>::new(
-            model_config.clone(),
-            args.time_lengths.clone(),
-            &device,
-        );
-        exp.train(model);
+
+        exp.train(model_config.clone());
         let elapsed = train_start.elapsed();
         println!("Training finished in {:.3} seconds", elapsed.as_secs_f64());
     }
+
     plot_loss_for_experiment(&result_path).expect("Failed to plot loss curves");
     exp.infer(model_config);
 }

@@ -14,7 +14,6 @@ use args::{backend::Backend as ArgBackend, RootArgs};
 use burn::backend::{Autodiff, Wgpu};
 use clap::Parser;
 
-use crate::args::model::ModelConfig;
 use crate::exp::run;
 
 fn main() {
@@ -27,16 +26,12 @@ fn main() {
     type Backend = Autodiff<Wgpu>;
     let device = Default::default();
     match args.task_name {
-        TaskName::LongTermForecast => match args.model_config {
-            ModelConfig::GradientModel(ref arg) => {
-                if args.backend == ArgBackend::Wgpu {
-                    run::<Backend>(arg.model_config.clone(), args, device);
-                }
+        TaskName::LongTermForecast => {
+            if args.backend == ArgBackend::Wgpu {
+                run::<Backend>(args.model_config.clone(), args, device);
             }
-            ModelConfig::RCModel(arg) => {
-                todo!()
-            }
-        },
+        }
+
         _ => todo!(),
     };
 }

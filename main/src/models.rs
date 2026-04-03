@@ -1,6 +1,5 @@
 pub mod gradient_model;
-pub mod ngrc;
-pub mod rc;
+pub mod rc_model;
 #[cfg(test)]
 pub mod test;
 pub mod traits;

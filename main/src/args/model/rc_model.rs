@@ -1,6 +1,6 @@
 use crate::{
     args::{data::DataCommand, model::DisplayArgs},
-    models::ngrc::NGRCArgs,
+    models::rc_model::ngrc::NGRCConfig,
 };
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ pub struct NGRCCommand {
     #[command(subcommand)]
     pub data_config: DataCommand,
     #[command(flatten)]
-    pub model_args: NGRCArgs,
+    pub model_args: NGRCConfig,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, Args)]
 pub struct RCModelArgs {

@@ -13,7 +13,7 @@ pub enum NgrcLoss {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Args)]
-pub struct NGRCArgs {
+pub struct NGRCConfig {
     #[arg(long, default_value_t = 2)]
     pub delay: usize,
     #[arg(long, default_value_t = 1)]
@@ -30,7 +30,7 @@ pub struct NGRCArgs {
     pub loss: NgrcLoss,
 }
 
-impl Default for NGRCArgs {
+impl Default for NGRCConfig {
     fn default() -> Self {
         Self {
             delay: 2,
@@ -44,7 +44,7 @@ impl Default for NGRCArgs {
     }
 }
 
-impl NGRCArgs {
+impl NGRCConfig {
     pub fn init<B: Backend>(self, device: &B::Device) -> NGRC<B> {
         NGRC {
             delay: self.delay,
