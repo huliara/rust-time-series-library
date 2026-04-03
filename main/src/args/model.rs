@@ -1,50 +1,36 @@
-use crate::{
-    args::data::DataCommand,
-    models::{dlinear::DLinearArgs, patch_tst::PatchTSTArgs, time_xer::TimeXerArgs},
+pub mod gradient_model;
+pub mod rc_model;
+use crate::args::{
+    data::DataCommand,
+    model::{gradient_model::GradientModelArgs, rc_model::RCModelArgs},
 };
-use clap::{Args, Subcommand};
+use clap::Subcommand;
 use serde::{Deserialize, Serialize};
-
-#[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct PatchTSTCommand {
-    #[command(subcommand)]
-    pub data_config: DataCommand,
-    #[command(flatten)]
-    pub model_args: PatchTSTArgs,
-}
-
-#[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct DLinearCommand {
-    #[command(subcommand)]
-    pub data_config: DataCommand,
-    #[command(flatten)]
-    pub model_args: DLinearArgs,
-}
-
-#[derive(Args, Debug, Clone, Deserialize, Serialize)]
-pub struct TimeXerCommand {
-    #[command(subcommand)]
-    pub data_config: DataCommand,
-    #[command(flatten)]
-    pub model_args: TimeXerArgs,
-}
 
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum ModelConfig {
-    #[strum(serialize = "PatchTST")]
-    PatchTST(PatchTSTCommand),
-    #[strum(serialize = "DLinear")]
-    DLinear(DLinearCommand),
-    #[strum(serialize = "TimeXer")]
-    TimeXer(TimeXerCommand),
+    GradientModel(GradientModelArgs),
+    RCModel(RCModelArgs),
 }
 
 impl ModelConfig {
     pub fn data_config(&self) -> &DataCommand {
         match self {
-            ModelConfig::PatchTST(cmd) => &cmd.data_config,
-            ModelConfig::DLinear(cmd) => &cmd.data_config,
-            ModelConfig::TimeXer(cmd) => &cmd.data_config,
+            ModelConfig::GradientModel(cmd) => cmd.model_config.data_config(),
+            ModelConfig::RCModel(cmd) => &cmd.model_config.data_config(),
+        }
+    }
+}
+
+pub trait DisplayArgs {
+    fn display_args(&self) -> String;
+}
+
+impl DisplayArgs for ModelConfig {
+    fn display_args(&self) -> String {
+        match self {
+            ModelConfig::GradientModel(cmd) => cmd.model_config.display_args(),
+            ModelConfig::RCModel(cmd) => cmd.model_config.display_args(),
         }
     }
 }

@@ -6,14 +6,14 @@ use ndarray_017::Array2;
 use ndarray_linalg::Inverse;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
 pub enum NgrcLoss {
     Mse,
     Mae,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Args)]
-pub struct NgrcArgs {
+pub struct NGRCArgs {
     #[arg(long, default_value_t = 2)]
     pub delay: usize,
     #[arg(long, default_value_t = 1)]
@@ -30,7 +30,7 @@ pub struct NgrcArgs {
     pub loss: NgrcLoss,
 }
 
-impl Default for NgrcArgs {
+impl Default for NGRCArgs {
     fn default() -> Self {
         Self {
             delay: 2,
@@ -44,7 +44,7 @@ impl Default for NgrcArgs {
     }
 }
 
-impl NgrcArgs {
+impl NGRCArgs {
     pub fn init<B: Backend>(self, device: &B::Device) -> NGRC<B> {
         NGRC {
             delay: self.delay,

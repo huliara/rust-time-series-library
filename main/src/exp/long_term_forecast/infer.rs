@@ -7,7 +7,7 @@ use crate::{
         long_term_forecast::{
             save_results::{plot_samples::plot_samples, save_metric::save_results},
             train::ExpConfig,
-            ForecastModel,
+            GradientForecastModel,
         },
         Infer,
     },
@@ -19,7 +19,7 @@ use burn::{
     tensor::backend::AutodiffBackend,
 };
 
-impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
+impl<B: AutodiffBackend> Infer<B> for GradientForecastModel<B> {
     fn infer(
         &self,
         exp_root_path: &str,
@@ -33,8 +33,9 @@ impl<B: AutodiffBackend> Infer<B> for ForecastModel<B> {
             .load(format!("{exp_root_path}/model").into(), &device)
             .expect("Trained model should exist; run train first");
 
-        let model: ForecastModel<B> =
-            ForecastModel::<B>::new(model_config, lengths.clone(), &device).load_record(record);
+        let model: GradientForecastModel<B> =
+            GradientForecastModel::<B>::new(model_config, lengths.clone(), &device)
+                .load_record(record);
 
         let dataloader_test = create_data_loader(
             &data_config,

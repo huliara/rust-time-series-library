@@ -1,11 +1,17 @@
 use crate::{
-    args::{data::DataCommand, model::ModelConfig, time_lengths::TimeLengths},
+    args::{
+        data::DataCommand,
+        model::{gradient_model::GradientModelConfig, ModelConfig},
+        time_lengths::TimeLengths,
+    },
     data::{
         batcher::TimeSeriesBatch, data_loader::create_data_loader,
         dataset::time_series_dataset::ExpFlag,
     },
     exp::{
-        long_term_forecast::{save_results::plot_samples::plot_samples, ForecastModel},
+        long_term_forecast::{
+            save_results::plot_samples::plot_samples, GradientForecastModel, LongTermForecastExp,
+        },
         loss::barron_loss::BarronLoss,
         Train,
     },
@@ -53,46 +59,40 @@ impl std::fmt::Display for ExpConfig {
     }
 }
 
-impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
-    fn train(
-        &self,
-        result_path: &str,
-        exp_config: ExpConfig,
-        model_config: ModelConfig,
-        data_config: DataCommand,
-        lengths: TimeLengths,
-        device: B::Device,
-    ) where
+impl<B: AutodiffBackend, M: Forecast<B> + AutodiffModule<B>> Train<B, M>
+    for LongTermForecastExp<B>
+{
+    fn train(&self, model: M)
+    where
         B: AutodiffBackend,
     {
-        B::seed(&device, exp_config.seed);
+        B::seed(&self.device, self.exp_config.seed);
 
         let dataloader_train = create_data_loader::<B>(
-            &data_config,
-            &lengths,
-            exp_config.batch_size,
-            exp_config.num_workers,
-            exp_config.seed,
+            &self.data_config,
+            &self.lengths,
+            self.exp_config.batch_size,
+            self.exp_config.num_workers,
+            self.exp_config.seed,
             ExpFlag::Train,
         );
 
         let dataloader_valid = create_data_loader::<B::InnerBackend>(
-            &data_config,
-            &lengths,
-            exp_config.batch_size,
-            exp_config.num_workers,
-            exp_config.seed,
+            &self.data_config,
+            &self.lengths,
+            self.exp_config.batch_size,
+            self.exp_config.num_workers,
+            self.exp_config.seed,
             ExpFlag::Val,
         );
 
-        let mut model = ForecastModel::<B>::new(model_config, lengths.clone(), &device);
         let mut optim = AdamConfig::new().init();
-        let train_log_root = format!("{result_path}/train");
-        let valid_log_root = format!("{result_path}/valid");
+        let train_log_root = format!("{0}/train", self.result_path);
+        let valid_log_root = format!("{0}/valid", self.result_path);
         fs::create_dir_all(&train_log_root).unwrap();
         fs::create_dir_all(&valid_log_root).unwrap();
 
-        for epoch in 1..=exp_config.num_epochs {
+        for epoch in 1..=self.exp_config.num_epochs {
             let mut train_loss_sum = 0.0f64;
             let mut train_steps = 0usize;
             let epoch_dir = format!("{train_log_root}/epoch-{epoch}");
@@ -114,11 +114,8 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
                 dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
 
                 let output = model.forecast(x, x_mark, dec_input, y_mark);
-                let loss = BarronLoss::new(exp_config.loss_alpha, exp_config.loss_scale).forward(
-                    output.clone(),
-                    y.clone(),
-                    nn::loss::Reduction::Mean,
-                );
+                let loss = BarronLoss::new(self.exp_config.loss_alpha, self.exp_config.loss_scale)
+                    .forward(output.clone(), y.clone(), nn::loss::Reduction::Mean);
 
                 let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
                 train_loss_sum += loss_scalar;
@@ -129,7 +126,7 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
 
                 let grads = loss.backward();
                 let grads = GradientsParams::from_grads(grads, &model);
-                model = optim.step(exp_config.learning_rate, model, grads);
+                model = optim.step(self.exp_config.learning_rate, model, grads);
             }
 
             let mut valid_loss_sum = 0.0f64;
@@ -192,11 +189,11 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
         // Plot a few training samples right after training for quick sanity checks.
         let train_plot_dir = train_log_root;
         let dataloader_train_plot = create_data_loader::<B>(
-            &data_config,
-            &lengths,
-            exp_config.batch_size,
-            exp_config.num_workers,
-            exp_config.seed,
+            &self.data_config,
+            &self.lengths,
+            self.exp_config.batch_size,
+            self.exp_config.num_workers,
+            self.exp_config.seed,
             ExpFlag::Train,
         );
 
@@ -210,7 +207,10 @@ impl<B: AutodiffBackend> Train<B> for ForecastModel<B> {
         }
 
         model
-            .save_file(format!("{result_path}/model"), &CompactRecorder::new())
+            .save_file(
+                format!("{0}/model", self.result_path),
+                &CompactRecorder::new(),
+            )
             .expect("Trained model should be saved successfully");
     }
 }

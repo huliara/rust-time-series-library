@@ -1,4 +1,3 @@
-use super::traits::Forecast;
 use crate::args::time_lengths::TimeLengths;
 use crate::args::{activation::ActivationArg, exp::TaskName};
 
@@ -11,6 +10,7 @@ use crate::layers::{
     transformer_enc_dec::Encoder,
     transformer_enc_dec::{EncoderConfig, EncoderLayerConfig},
 };
+use crate::models::traits::Forecast;
 use burn::{
     config::Config,
     module::Module,
@@ -190,11 +190,12 @@ impl<B: Backend> Forecast<B> for PatchTST<B> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::test::assert_module_forecast;
+
     use crate::args::activation::ActivationArg;
     use crate::args::exp::TaskName;
     use crate::args::time_lengths::TimeLengths;
-    use crate::models::patch_tst::{PatchTST, PatchTSTArgs, PatchTSTConfig};
+    use crate::models::gradient_model::patch_tst::{PatchTST, PatchTSTArgs, PatchTSTConfig};
+    use crate::models::test::assert_module_forecast;
     use crate::test_utils::dim::Dim;
     use burn::backend::Wgpu;
     use burn::nn::Initializer;

@@ -1,10 +1,10 @@
 use crate::{
     data::batcher::TimeSeriesBatch,
-    exp::long_term_forecast::{forecast_output::ForecastOutput, ForecastModel},
+    exp::long_term_forecast::{forecast_output::ForecastOutput, GradientForecastModel},
     models::traits::Forecast,
 };
 use burn::{nn::loss::MseLoss, prelude::*, train::InferenceStep};
-impl<B: Backend> InferenceStep for ForecastModel<B> {
+impl<B: Backend> InferenceStep for GradientForecastModel<B> {
     type Input = TimeSeriesBatch<B>;
     type Output = ForecastOutput<B>;
 

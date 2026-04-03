@@ -1,6 +1,6 @@
 use crate::{
     data::batcher::TimeSeriesBatch,
-    exp::long_term_forecast::{forecast_output::ForecastOutput, ForecastModel},
+    exp::long_term_forecast::{forecast_output::ForecastOutput, GradientForecastModel},
     models::traits::Forecast,
 };
 use burn::{
@@ -10,7 +10,7 @@ use burn::{
     train::{TrainOutput, TrainStep},
 };
 
-impl<B: AutodiffBackend> TrainStep for ForecastModel<B> {
+impl<B: AutodiffBackend> TrainStep for GradientForecastModel<B> {
     type Input = TimeSeriesBatch<B>;
     type Output = ForecastOutput<B>;
     fn step(&self, batch: TimeSeriesBatch<B>) -> TrainOutput<ForecastOutput<B>> {

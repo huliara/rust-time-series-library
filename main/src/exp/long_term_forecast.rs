@@ -5,58 +5,32 @@ mod save_results;
 pub mod train;
 mod train_step;
 use crate::{
-    args::{exp::TaskName, model::ModelConfig, time_lengths::TimeLengths},
-    exp::Exp,
-    models::{
-        dlinear::{DLinear, DLinearConfig},
-        patch_tst::{PatchTST, PatchTSTConfig},
-        time_xer::{TimeXer, TimeXerConfig},
-        traits::Forecast,
+    args::{
+        data::DataCommand, exp::TaskName, model::gradient_model::GradientModelConfig,
+        time_lengths::TimeLengths,
     },
+    exp::long_term_forecast::train::ExpConfig,
+    models::{gradient_model::GradientModel, traits::Forecast},
 };
 use burn::{prelude::*, tensor::backend::AutodiffBackend};
-#[derive(Module, Debug)]
-enum Model<B: Backend> {
-    PatchTST(PatchTST<B>),
-    DLinear(DLinear<B>),
-    TimeXer(TimeXer<B>),
-}
 
 #[derive(Module, Debug)]
-pub struct ForecastModel<B: Backend> {
-    model: Model<B>,
+pub struct GradientForecastModel<B: Backend> {
+    model: GradientModel<B>,
 }
 
-impl<B: Backend> ForecastModel<B> {
-    pub fn new(model_config: ModelConfig, lengths: TimeLengths, device: &B::Device) -> Self {
-        let model = match model_config {
-            ModelConfig::PatchTST(cmd) => {
-                Model::PatchTST(PatchTSTConfig::new(cmd.model_args).init(
-                    TaskName::LongTermForecast,
-                    lengths,
-                    device,
-                ))
-            }
-            ModelConfig::DLinear(cmd) => Model::DLinear(DLinearConfig::new(cmd.model_args).init(
-                TaskName::LongTermForecast,
-                lengths,
-                device,
-            )),
-            ModelConfig::TimeXer(cmd) => {
-                let input_dim = cmd.data_config.input_dim();
-                Model::TimeXer(TimeXerConfig::new(cmd.model_args).init(
-                    TaskName::LongTermForecast,
-                    lengths,
-                    input_dim,
-                    device,
-                ))
-            }
-        };
-        ForecastModel { model }
+impl<B: Backend> GradientForecastModel<B> {
+    pub fn new(
+        model_config: GradientModelConfig,
+        lengths: TimeLengths,
+        device: &B::Device,
+    ) -> Self {
+        let model = model_config.init(TaskName::LongTermForecast, lengths, device);
+        Self { model }
     }
 }
 
-impl<B: Backend> Forecast<B> for ForecastModel<B> {
+impl<B: Backend> Forecast<B> for GradientForecastModel<B> {
     fn forecast(
         &self,
         x: Tensor<B, 3>,
@@ -65,11 +39,17 @@ impl<B: Backend> Forecast<B> for ForecastModel<B> {
         y_mark: Tensor<B, 3>,
     ) -> Tensor<B, 3> {
         match &self.model {
-            Model::PatchTST(model) => model.forecast(x, x_mark, dec_input, y_mark),
-            Model::DLinear(model) => model.forecast(x, x_mark, dec_input, y_mark),
-            Model::TimeXer(model) => model.forecast(x, x_mark, dec_input, y_mark),
+            GradientModel::PatchTST(model) => model.forecast(x, x_mark, dec_input, y_mark),
+            GradientModel::DLinear(model) => model.forecast(x, x_mark, dec_input, y_mark),
+            GradientModel::TimeXer(model) => model.forecast(x, x_mark, dec_input, y_mark),
         }
     }
 }
 
-impl<B: AutodiffBackend> Exp<B> for ForecastModel<B> {}
+struct LongTermForecastExp<B: AutodiffBackend> {
+    result_path: String,
+    exp_config: ExpConfig,
+    data_config: DataCommand,
+    lengths: TimeLengths,
+    device: B::Device,
+}

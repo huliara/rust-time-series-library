@@ -290,7 +290,7 @@ impl<B: Backend> Classification<B> for DLinear<B> {
 mod tests {
     use super::{DLinear, DLinearConfig};
     use crate::args::{exp::TaskName, time_lengths::TimeLengths};
-    use crate::models::dlinear::DLinearArgs;
+    use crate::models::gradient_model::dlinear::DLinearArgs;
     use crate::models::test::assert_module_forecast;
     use crate::test_utils::dim::Dim;
     use burn::backend::wgpu::Wgpu;

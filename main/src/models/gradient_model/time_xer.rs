@@ -1,4 +1,3 @@
-use super::traits::Forecast;
 use crate::activation::Activation;
 use crate::args::{activation::ActivationArg, exp::TaskName, time_lengths::TimeLengths};
 use crate::layers::flatten_head::{FlattenHead, FlattenHeadConfig};
@@ -12,6 +11,7 @@ use crate::layers::{
         full_attention::FullAttentionConfig,
     },
 };
+use crate::models::traits::Forecast;
 use burn::{
     config::Config,
     module::Module,
@@ -303,11 +303,12 @@ impl<B: Backend> Forecast<B> for TimeXer<B> {
 }
 #[cfg(test)]
 mod tests {
-    use super::super::test::assert_module_forecast;
+
     use super::{TimeXer, TimeXerArgs, TimeXerConfig};
     use crate::args::activation::ActivationArg;
     use crate::args::exp::TaskName;
     use crate::args::time_lengths::TimeLengths;
+    use crate::models::test::assert_module_forecast;
     use crate::test_utils::dim::Dim;
     use burn::backend::Wgpu;
     use burn::nn::Initializer;
