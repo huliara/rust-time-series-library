@@ -11,6 +11,7 @@ use crate::{
         dlinear::{DLinear, DLinearConfig},
         patch_tst::{PatchTST, PatchTSTConfig},
         time_xer::{TimeXer, TimeXerConfig},
+        xpatch::{XPatch, XPatchConfig},
         traits::Forecast,
     },
 };
@@ -20,6 +21,7 @@ enum Model<B: Backend> {
     PatchTST(PatchTST<B>),
     DLinear(DLinear<B>),
     TimeXer(TimeXer<B>),
+    XPatch(XPatch<B>),
 }
 
 #[derive(Module, Debug)]
@@ -51,6 +53,13 @@ impl<B: Backend> ForecastModel<B> {
                     device,
                 ))
             }
+            ModelConfig::XPatch(cmd) => {
+                Model::XPatch(XPatchConfig::new(cmd.model_args).init(
+                    TaskName::LongTermForecast,
+                    lengths,
+                    device,
+                ))
+            }
         };
         ForecastModel { model }
     }
@@ -68,6 +77,7 @@ impl<B: Backend> Forecast<B> for ForecastModel<B> {
             Model::PatchTST(model) => model.forecast(x, x_mark, dec_input, y_mark),
             Model::DLinear(model) => model.forecast(x, x_mark, dec_input, y_mark),
             Model::TimeXer(model) => model.forecast(x, x_mark, dec_input, y_mark),
+            Model::XPatch(model) => model.forecast(x, x_mark, dec_input, y_mark),
         }
     }
 }

@@ -48,6 +48,20 @@ fn get_model_args_string(model_config: &ModelConfig) -> String {
                 args.activation,
             )
         }
+        ModelConfig::XPatch(cmd) => {
+            let args = &cmd.model_args;
+            format!(
+                "ei{}pt{}st{}pp{}rv{}ma{}a{}b{}",
+                args.enc_in,
+                args.patch_len,
+                args.stride,
+                args.padding_patch,
+                args.revin,
+                args.ma_type,
+                args.alpha,
+                args.beta,
+            )
+        }
     }
 }
 

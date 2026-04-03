@@ -1,6 +1,8 @@
 use crate::{
     args::data::DataCommand,
-    models::{dlinear::DLinearArgs, patch_tst::PatchTSTArgs, time_xer::TimeXerArgs},
+    models::{
+        dlinear::DLinearArgs, patch_tst::PatchTSTArgs, time_xer::TimeXerArgs, xpatch::XPatchArgs,
+    },
 };
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -29,6 +31,14 @@ pub struct TimeXerCommand {
     pub model_args: TimeXerArgs,
 }
 
+#[derive(Args, Debug, Clone, Deserialize, Serialize)]
+pub struct XPatchCommand {
+    #[command(subcommand)]
+    pub data_config: DataCommand,
+    #[command(flatten)]
+    pub model_args: XPatchArgs,
+}
+
 #[derive(Subcommand, Debug, Clone, Deserialize, Serialize, strum::Display)]
 pub enum ModelConfig {
     #[strum(serialize = "PatchTST")]
@@ -37,6 +47,8 @@ pub enum ModelConfig {
     DLinear(DLinearCommand),
     #[strum(serialize = "TimeXer")]
     TimeXer(TimeXerCommand),
+    #[strum(serialize = "XPatch")]
+    XPatch(XPatchCommand),
 }
 
 impl ModelConfig {
@@ -45,6 +57,7 @@ impl ModelConfig {
             ModelConfig::PatchTST(cmd) => &cmd.data_config,
             ModelConfig::DLinear(cmd) => &cmd.data_config,
             ModelConfig::TimeXer(cmd) => &cmd.data_config,
+            ModelConfig::XPatch(cmd) => &cmd.data_config,
         }
     }
 }
