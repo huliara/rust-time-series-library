@@ -294,6 +294,10 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                             .expect("Failed to flush validation Loss.log");
                     }
                 }
+
+                model
+                    .save(&format!("{0}/model.yaml", self.result_path))
+                    .expect("Failed to save RC model");
             }
         }
     }

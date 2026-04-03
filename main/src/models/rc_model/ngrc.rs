@@ -2,8 +2,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{s, Shape, Tensor, TensorData};
 use clap::{Args, ValueEnum};
 use itertools::Itertools;
-use ndarray_017::Array2;
-use ndarray_linalg::Inverse;
+use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
@@ -45,8 +44,8 @@ impl Default for NGRCConfig {
 }
 
 impl NGRCConfig {
-    pub fn init<B: Backend>(self, device: &B::Device) -> NGRC<B> {
-        NGRC {
+    pub fn init<B: Backend>(self, device: &B::Device) -> Ngrc<B> {
+        Ngrc {
             delay: self.delay,
             stride: self.stride,
             poly_order: self.poly_order,
@@ -61,7 +60,7 @@ impl NGRCConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct NGRC<B: Backend> {
+pub struct Ngrc<B: Backend> {
     delay: usize,
     stride: usize,
     poly_order: usize,
@@ -73,7 +72,52 @@ pub struct NGRC<B: Backend> {
     device: B::Device,
 }
 
-impl<B: Backend> NGRC<B> {
+#[derive(Serialize, Deserialize)]
+pub struct NGRCState {
+    pub config: NGRCConfig,
+    pub wout_data: Option<Vec<f32>>,
+    pub wout_shape: Option<Vec<usize>>,
+}
+
+impl<B: Backend> Ngrc<B> {
+    pub fn get_state(&self) -> NGRCState {
+        let (wout_data, wout_shape) = if let Some(w) = &self.wout {
+            let data = w.clone().into_data();
+            let slice = data.as_slice::<f32>().unwrap().to_vec();
+            let dims = data.shape.to_vec();
+            (Some(slice), Some(dims))
+        } else {
+            (None, None)
+        };
+        NGRCState {
+            config: NGRCConfig {
+                delay: self.delay,
+                stride: self.stride,
+                poly_order: self.poly_order,
+                ridge_param: self.ridge_param,
+                transients: self.transients,
+                bias: self.bias,
+                loss: self.loss,
+            },
+            wout_data,
+            wout_shape,
+        }
+    }
+
+    pub fn from_state(device: &B::Device, state: NGRCState) -> Self {
+        let wout = if let (Some(data), Some(shape)) = (state.wout_data, state.wout_shape) {
+            Some(Tensor::<B, 2>::from_data(
+                burn::tensor::TensorData::new(data, shape),
+                device,
+            ))
+        } else {
+            None
+        };
+        let mut ngrc = state.config.init::<B>(device);
+        ngrc.wout = wout;
+        ngrc
+    }
+
     pub fn fit(&mut self, train_data: &Tensor<B, 2>) -> Result<(), String> {
         let shape = train_data.shape();
         if shape.dims[0] < 2 {
@@ -288,24 +332,6 @@ impl<B: Backend> NGRC<B> {
     }
 }
 
-fn combinations_with_replacement(n: usize, p: usize) -> Vec<Vec<usize>> {
-    fn rec(start: usize, n: usize, p: usize, cur: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
-        if cur.len() == p {
-            out.push(cur.clone());
-            return;
-        }
-        for i in start..n {
-            cur.push(i);
-            rec(i, n, p, cur, out);
-            cur.pop();
-        }
-    }
-
-    let mut out = Vec::new();
-    rec(0, n, p, &mut Vec::new(), &mut out);
-    out
-}
-
 fn invert_square_tensor<B: Backend>(
     a: Tensor<B, 2>,
     device: &B::Device,
@@ -316,18 +342,19 @@ fn invert_square_tensor<B: Backend>(
     }
     let n = shape.dims[0];
 
-    // Convert Burn tensor to ndarray matrix and invert with ndarray-linalg.
+    // Convert Burn tensor to ndarray matrix and invert with nalgebra.
     let a_data = a.into_data().convert::<f32>();
     let a_slice = a_data
         .as_slice::<f32>()
         .map_err(|e| format!("failed to get matrix data as contiguous slice: {e}"))?;
 
-    let a_matrix = Array2::from_shape_vec((n, n), a_slice.to_vec())
-        .map_err(|e| format!("failed to build ndarray matrix: {e}"))?;
+    let a_matrix = DMatrix::from_row_slice(n, n, a_slice);
     let inv = a_matrix
-        .inv()
-        .map_err(|e| format!("matrix inversion failed: {e}"))?;
-    let inv_data: Vec<f32> = inv.iter().copied().collect();
+        .try_inverse()
+        .ok_or_else(|| "matrix inversion failed: singular matrix".to_string())?;
+    // nalgebra stores data column-major. Transposing creates a matrix whose
+    // column-major iterator yields elements in row-major order.
+    let inv_data: Vec<f32> = inv.transpose().iter().copied().collect();
 
     Ok(Tensor::from_data(
         TensorData::new(inv_data, burn::tensor::Shape::new([n, n])),

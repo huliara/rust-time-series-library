@@ -1,0 +1,43 @@
+--- main/src/models/rc_model/ngrc.rs
++++ main/src/models/rc_model/ngrc.rs
+@@ -58,6 +58,40 @@
+         }
+     }
+ 
++    pub fn get_state(&self) -> NGRCState {
++        let (wout_data, wout_shape) = if let Some(w) = &self.wout {
++            let data = w.clone().into_data();
++            let slice = data.as_slice::<f32>().unwrap().to_vec();
++            let dims = data.shape.to_vec();
++            (Some(slice), Some(dims))
++        } else {
++            (None, None)
++        };
++        NGRCState {
++            config: NGRCConfig {
++                delay: self.delay,
++                stride: self.stride,
++                poly_order: self.poly_order,
++                ridge_param: self.ridge_param,
++                transients: self.transients,
++                bias: self.bias,
++                loss: self.loss,
++            },
++            wout_data,
++            wout_shape,
++        }
++    }
++
++    pub fn from_state(device: &B::Device, state: NGRCState) -> Self {
++        let wout = if let (Some(data), Some(shape)) = (state.wout_data, state.wout_shape) {
++            Some(Tensor::<B, 2>::from_data(burn::tensor::TensorData::new(data, shape), device))
++        } else {
++            None
++        };
++        let mut ngrc = state.config.init::<B>(device);
++        ngrc.wout = wout;
++        ngrc
++    }
++
+     pub fn fit(&mut self, train_data: &Tensor<B, 2>) -> Result<(), String> {
+         let shape = train_data.shape();

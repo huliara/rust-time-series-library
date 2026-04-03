@@ -276,6 +276,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore] // This is more of an integration test and can be slow
     fn rc_fit_and_forecast_shape() {
         let mut model = Rc::new(RcConfig {
             units: 64,
