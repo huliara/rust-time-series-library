@@ -21,7 +21,7 @@ TRANSIENTS="${TRANSIENTS:-5}"
 MODEL_CMD=(rc-model ngrc --delay "$DELAY" --stride "$STRIDE" --poly-order "$POLY_ORDER" --ridge-param "$RIDGE_PARAM" --transients "$TRANSIENTS")
 
 # Dynamic-system specific optional overrides.
-N_TIMESTEPS="${N_TIMESTEPS:-60000}"
+N_TIMESTEPS="${N_TIMESTEPS:-6000}"
 DT="${DT:-0.01}"
 H="${H:-0.01}"
 DATA_CMDS=(

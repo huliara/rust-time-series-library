@@ -189,9 +189,9 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
     }
 }
 
-fn validate<B: Backend>(
+fn validate<B: Backend, M: Forecast<B>>(
     dataloader_valid: Arc<dyn dataloader::DataLoader<B, TimeSeriesBatch<B>>>,
-    model_valid: impl Forecast<B>,
+    model_valid: M,
     result_path: &str,
 ) {
     fs::create_dir_all(result_path).unwrap();
@@ -231,9 +231,9 @@ fn validate<B: Backend>(
         .expect("Failed to flush per-epoch validation Loss.log");
 }
 
-fn plot_train_data_forecast<B: Backend>(
+fn plot_train_data_forecast<B: Backend, M: Forecast<B>>(
     dataloader_train: Arc<dyn dataloader::DataLoader<B, TimeSeriesBatch<B>>>,
-    model: impl Forecast<B>,
+    model: M,
     result_path: &str,
     plot_num: usize,
 ) {

@@ -5,6 +5,8 @@ use itertools::Itertools;
 use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 
+use crate::models::traits::Forecast;
+
 #[derive(Debug, Clone, ValueEnum, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
 pub enum NgrcLoss {
     Mse,
@@ -137,7 +139,7 @@ impl<B: Backend> Ngrc<B> {
         Ok(())
     }
 
-    pub fn forecast(&self, context: &Tensor<B, 2>, steps: usize) -> Result<Tensor<B, 2>, String> {
+    fn forecast(&self, context: &Tensor<B, 2>, steps: usize) -> Result<Tensor<B, 2>, String> {
         let shape = context.shape();
         if shape.dims[0] < self.delay + 1 {
             return Err(format!(
@@ -361,4 +363,25 @@ fn invert_square_tensor<B: Backend>(
         TensorData::new(inv_data, burn::tensor::Shape::new([n, n])),
         device,
     ))
+}
+
+impl<B: Backend> Forecast<B> for Ngrc<B> {
+    fn forecast(
+        &self,
+        x: Tensor<B, 3>,
+        _x_mark: Tensor<B, 3>,
+        y: Tensor<B, 3>,
+        _y_mark: Tensor<B, 3>,
+    ) -> Tensor<B, 3> {
+        let pred_len = y.shape().dims[1];
+        let mut output = Vec::new();
+        for series in x.iter_dim(0) {
+            let predict = self
+                .forecast(&series.unsqueeze(), pred_len)
+                .unwrap_or_else(|_| Tensor::zeros([1, pred_len], &self.device));
+            output.push(predict);
+        }
+
+        Tensor::stack(output, 0)
+    }
 }
