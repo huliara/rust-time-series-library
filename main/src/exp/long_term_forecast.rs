@@ -10,7 +10,7 @@ use crate::{
         time_lengths::TimeLengths,
     },
     exp::long_term_forecast::train::ExpConfig,
-    models::{gradient_model::GradientModel, rc_model::RCModel, traits::Forecast},
+    models::{gradient_model::GradientModel, traits::Forecast},
 };
 use burn::{prelude::*, tensor::backend::AutodiffBackend};
 

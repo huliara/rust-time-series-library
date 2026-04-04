@@ -15,6 +15,7 @@ use crate::{
     models::{rc_model::RCModel, traits::Forecast},
 };
 use burn::{
+    data::dataloader,
     module::AutodiffModule,
     nn::loss::MseLoss,
     optim::{AdamConfig, GradientsParams, Optimizer},
@@ -27,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     io::{BufWriter, Write},
+    sync::Arc,
 };
 #[derive(Debug, Args, Clone, Deserialize, Serialize)]
 pub struct ExpConfig {
@@ -62,6 +64,28 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
         B: AutodiffBackend,
     {
         B::seed(&self.device, self.exp_config.seed);
+        let dataloader_train = create_data_loader::<B>(
+            &self.data_config,
+            &self.lengths,
+            self.exp_config.batch_size,
+            self.exp_config.num_workers,
+            self.exp_config.seed,
+            ExpFlag::Train,
+        );
+
+        let dataloader_valid = create_data_loader::<B::InnerBackend>(
+            &self.data_config,
+            &self.lengths,
+            self.exp_config.batch_size,
+            self.exp_config.num_workers,
+            self.exp_config.seed,
+            ExpFlag::Val,
+        );
+        let train_log_root = format!("{0}/train", self.result_path);
+        let valid_log_root = format!("{0}/valid", self.result_path);
+        fs::create_dir_all(&train_log_root).unwrap();
+        fs::create_dir_all(&valid_log_root).unwrap();
+
         match model_config {
             ModelCommand::GradientModel(arg) => {
                 let mut model = GradientForecastModel::<B>::new(
@@ -69,29 +93,8 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     self.lengths.clone(),
                     &self.device,
                 );
-                let dataloader_train = create_data_loader::<B>(
-                    &self.data_config,
-                    &self.lengths,
-                    self.exp_config.batch_size,
-                    self.exp_config.num_workers,
-                    self.exp_config.seed,
-                    ExpFlag::Train,
-                );
-
-                let dataloader_valid = create_data_loader::<B::InnerBackend>(
-                    &self.data_config,
-                    &self.lengths,
-                    self.exp_config.batch_size,
-                    self.exp_config.num_workers,
-                    self.exp_config.seed,
-                    ExpFlag::Val,
-                );
 
                 let mut optim = AdamConfig::new().init();
-                let train_log_root = format!("{0}/train", self.result_path);
-                let valid_log_root = format!("{0}/valid", self.result_path);
-                fs::create_dir_all(&train_log_root).unwrap();
-                fs::create_dir_all(&valid_log_root).unwrap();
 
                 for epoch in 1..=self.exp_config.num_epochs {
                     let mut train_loss_sum = 0.0f64;
@@ -121,6 +124,7 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
 
                         let loss_scalar =
                             loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
+
                         train_loss_sum += loss_scalar;
                         train_steps += 1;
                         // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
@@ -132,83 +136,21 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                         model = optim.step(self.exp_config.learning_rate, model, grads);
                     }
 
-                    let mut valid_loss_sum = 0.0f64;
-                    let mut valid_steps = 0usize;
-
-                    let valid_epoch_dir = format!("{valid_log_root}/epoch-{epoch}");
-
-                    fs::create_dir_all(&valid_epoch_dir).unwrap();
-                    let valid_epoch_loss_log = format!("{valid_epoch_dir}/Loss.log");
-                    let valid_epoch_loss_file = fs::File::create(&valid_epoch_loss_log)
-                        .expect("Failed to create per-epoch validation Loss.log");
-                    let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
-                    let model_valid = model.valid();
-
-                    for batch in dataloader_valid.iter() {
-                        let TimeSeriesBatch {
-                            x,
-                            x_mark,
-                            y,
-                            y_mark,
-                        } = batch;
-
-                        let mut dec_input = Tensor::zeros_like(&y);
-                        dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
-
-                        let output = model_valid.forecast(x, x_mark, dec_input, y_mark);
-                        let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
-                        let loss_scalar =
-                            loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
-
-                        valid_loss_sum += loss_scalar;
-                        valid_steps += 1;
-                        // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
-                        writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
-                            .expect("Failed to write validation loss log line");
-                    }
-
-                    let train_avg = if train_steps > 0 {
-                        train_loss_sum / train_steps as f64
-                    } else {
-                        0.0
-                    };
-                    let valid_avg = if valid_steps > 0 {
-                        valid_loss_sum / valid_steps as f64
-                    } else {
-                        0.0
-                    };
-
                     println!(
-                        "[Epoch {} Summary] train_loss={:.6} valid_loss={:.6}",
-                        epoch, train_avg, valid_avg
+                        "[Epoch {epoch}] train_loss={:.6}",
+                        train_loss_sum / train_steps as f64
                     );
+                    let valid_epoch_dir = format!("{valid_log_root}/epoch-{epoch}");
+                    let model_valid = model.valid();
+                    validate(dataloader_valid.clone(), model_valid, &valid_epoch_dir);
+
                     epoch_loss_writer
                         .flush()
                         .expect("Failed to flush per-epoch Loss.log");
-                    valid_epoch_loss_writer
-                        .flush()
-                        .expect("Failed to flush per-epoch validation Loss.log");
                 }
 
                 // Plot a few training samples right after training for quick sanity checks.
-                let train_plot_dir = train_log_root;
-                let dataloader_train_plot = create_data_loader::<B>(
-                    &self.data_config,
-                    &self.lengths,
-                    self.exp_config.batch_size,
-                    self.exp_config.num_workers,
-                    self.exp_config.seed,
-                    ExpFlag::Train,
-                );
-
-                if let Some(batch) = dataloader_train_plot.iter().next() {
-                    let contexts = batch.x.clone();
-                    let futures = batch.y.clone();
-                    let predicts = model.forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
-
-                    let num_plots = usize::min(5, contexts.dims()[0]);
-                    plot_samples(contexts, predicts, futures, num_plots, &train_plot_dir);
-                }
+                plot_train_data_forecast(dataloader_train, model, &train_log_root, 5);
 
                 model
                     .save_file(
@@ -225,14 +167,6 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     ExpFlag::Train,
                     &self.device,
                 );
-                let dataloader = create_data_loader::<B>(
-                    &self.data_config,
-                    &self.lengths,
-                    self.exp_config.batch_size,
-                    self.exp_config.num_workers,
-                    self.exp_config.seed,
-                    ExpFlag::Val,
-                );
 
                 match &mut model {
                     RCModel::NGRC(ngrc) => {
@@ -242,56 +176,8 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                         println!("NGRC model training completed.");
 
                         let valid_log_root = format!("{0}/valid", self.result_path);
-                        fs::create_dir_all(&valid_log_root).unwrap();
-                        let valid_epoch_loss_log = format!("{valid_log_root}/Loss.log");
-                        let valid_epoch_loss_file = fs::File::create(&valid_epoch_loss_log)
-                            .expect("Failed to create per-epoch validation Loss.log");
-                        let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
-
-                        let mut valid_loss_sum = 0.0f64;
-                        let mut valid_steps = 0usize;
-
-                        println!("Starting validation...");
-                        for batch in dataloader.iter() {
-                            let TimeSeriesBatch { x, y, .. } = batch;
-                            let dims = x.dims();
-                            let batch_size = dims[0];
-                            let seq_len = dims[1];
-                            let n_dim = dims[2];
-                            let pred_len = y.dims()[1];
-
-                            let mut outputs = Vec::with_capacity(batch_size);
-                            for b in 0..batch_size {
-                                let x_b = x
-                                    .clone()
-                                    .slice([b..b + 1, 0..seq_len, 0..n_dim])
-                                    .squeeze_dim::<2>(0);
-                                let pred =
-                                    ngrc.forecast(&x_b, pred_len).expect("Failed to forecast");
-                                outputs.push(pred.unsqueeze_dim::<3>(0));
-                            }
-                            let output = Tensor::cat(outputs, 0);
-
-                            let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
-                            let loss_scalar = loss.into_data().into_vec::<f32>().unwrap()[0] as f64;
-
-                            valid_loss_sum += loss_scalar;
-                            valid_steps += 1;
-
-                            writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
-                                .expect("Failed to write validation loss log line");
-                        }
-
-                        let valid_avg = if valid_steps > 0 {
-                            valid_loss_sum / valid_steps as f64
-                        } else {
-                            0.0
-                        };
-
-                        println!("[Validation Summary] valid_loss={:.6}", valid_avg);
-                        valid_epoch_loss_writer
-                            .flush()
-                            .expect("Failed to flush validation Loss.log");
+                        validate(dataloader_valid, ngrc, &valid_log_root);
+                        plot_train_data_forecast(dataloader_train, ngrc, &train_log_root, 5);
                     }
                 }
 
@@ -300,5 +186,69 @@ impl<B: AutodiffBackend> Train<B> for LongTermForecastExp<B> {
                     .expect("Failed to save RC model");
             }
         }
+    }
+}
+
+fn validate<B: Backend>(
+    dataloader_valid: Arc<dyn dataloader::DataLoader<B, TimeSeriesBatch<B>>>,
+    model_valid: impl Forecast<B>,
+    result_path: &str,
+) {
+    fs::create_dir_all(result_path).unwrap();
+    let valid_epoch_loss_log = format!("{result_path}/Loss.log");
+    let valid_epoch_loss_file = fs::File::create(&valid_epoch_loss_log)
+        .expect("Failed to create per-epoch validation Loss.log");
+    let mut valid_epoch_loss_writer = BufWriter::new(valid_epoch_loss_file);
+    let mut valid_loss_sum = 0.0f64;
+    let mut valid_steps = 0usize;
+    for batch in dataloader_valid.iter() {
+        let TimeSeriesBatch {
+            x,
+            x_mark,
+            y,
+            y_mark,
+        } = batch;
+
+        let mut dec_input = Tensor::zeros_like(&y);
+        dec_input = Tensor::cat(vec![y.clone(), dec_input], 1);
+
+        let output = model_valid.forecast(x, x_mark, dec_input, y_mark);
+        let loss = MseLoss::new().forward(output, y, nn::loss::Reduction::Mean);
+        let loss_scalar = loss.clone().into_data().into_vec::<f32>().unwrap()[0] as f64;
+        valid_loss_sum += loss_scalar;
+        valid_steps += 1;
+
+        // Keep the same format as Burn trainer logs: `<loss>,1` per iteration.
+        writeln!(&mut valid_epoch_loss_writer, "{loss_scalar},1")
+            .expect("Failed to write validation loss log line");
+    }
+    println!(
+        "[Validation] valid_loss={:.6}",
+        valid_loss_sum / valid_steps as f64
+    );
+    valid_epoch_loss_writer
+        .flush()
+        .expect("Failed to flush per-epoch validation Loss.log");
+}
+
+fn plot_train_data_forecast<B: Backend>(
+    dataloader_train: Arc<dyn dataloader::DataLoader<B, TimeSeriesBatch<B>>>,
+    model: impl Forecast<B>,
+    result_path: &str,
+    plot_num: usize,
+) {
+    let train_batch_len = dataloader_train.iter().count();
+    let plot_num = usize::min(plot_num, train_batch_len);
+    let plot_offset = usize::max(1, train_batch_len / plot_num);
+
+    for (i, batch) in dataloader_train.iter().enumerate() {
+        if i % plot_offset != 0 {
+            continue;
+        }
+        let contexts = batch.x.clone();
+        let futures = batch.y.clone();
+        let predicts = model.forecast(batch.x, batch.x_mark, batch.y, batch.y_mark);
+
+        plot_samples(contexts, predicts, futures, 1, &result_path);
     }
 }

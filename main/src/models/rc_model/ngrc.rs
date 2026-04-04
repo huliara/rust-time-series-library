@@ -245,24 +245,25 @@ impl<B: Backend> Ngrc<B> {
             let lin_feat = win
                 .clone()
                 .slice(s![..;s_stride as isize, ..])
-                .flatten(0, -1);
+                .flatten::<1>(0, 1)
+                .unsqueeze_dim::<2>(0);
 
             // Extract nonlinear features
             let mut nlin_feat: Tensor<B, 2> =
                 Tensor::zeros(Shape::new([1, nlin_dim]), &self.device);
             for (j, ids) in monom_idx.clone().enumerate() {
                 nlin_feat = nlin_feat.slice_assign(
-                    s![j],
+                    [0..1, j..j + 1],
                     lin_feat
                         .clone()
                         .select(
-                            0,
+                            1,
                             Tensor::from_data(
                                 TensorData::new(ids.clone(), Shape::new([ids.len()])),
                                 &self.device,
                             ),
                         )
-                        .prod_dim(0),
+                        .prod_dim(1),
                 );
             }
 
